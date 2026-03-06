@@ -21,37 +21,68 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
   const [isCheckingIn, setIsCheckingIn] = useState(false)
   const router = useRouter()
 
+  const fetchMember = async (cardCode: string, shouldSetLoading = false) => {
+    if (shouldSetLoading) {
+      setLoading(true)
+    }
+
+    try {
+      const memberRes = await fetch(`/api/members/${cardCode}`, { cache: 'no-store' })
+      if (memberRes.ok) {
+        const data = await memberRes.json()
+        setMember(data)
+        setError(null)
+      } else if (memberRes.status === 404) {
+        setMember(null)
+        setError(null)
+      } else {
+        setMember(null)
+        setError('Грешка при зареждане на потребителя')
+      }
+    } catch (err) {
+      console.error('Error fetching member:', err)
+      setMember(null)
+      setError('Грешка при зареждане на потребителя')
+    } finally {
+      if (shouldSetLoading) {
+        setLoading(false)
+      }
+    }
+  }
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const sessionRes = await fetch('/api/admin/check-session')
         const sessionData = await sessionRes.json()
         setIsAdmin(sessionData.isAdmin)
-
-        const memberRes = await fetch(`/api/members/${resolvedParams.cardCode}`)
-        if (memberRes.ok) {
-          const data = await memberRes.json()
-          setMember(data)
-          setError(null)
-        } else {
-          if (memberRes.status === 404) {
-            setMember(null)
-            setError(null)
-          } else {
-            setMember(null)
-            setError('Грешка при зареждане на потребителя')
-          }
-        }
       } catch (err) {
         console.error('Error fetching data:', err)
-        setMember(null)
-        setError('Грешка при зареждане на потребителя')
-      } finally {
-        setLoading(false)
       }
+
+      await fetchMember(resolvedParams.cardCode, true)
     }
 
     fetchData()
+  }, [resolvedParams.cardCode])
+
+  useEffect(() => {
+    const eventSource = new EventSource(`/api/members/${resolvedParams.cardCode}/events`)
+
+    eventSource.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data) as { type?: string }
+        if (payload.type === 'check-in' || payload.type === 'reset') {
+          fetchMember(resolvedParams.cardCode)
+        }
+      } catch (err) {
+        console.error('SSE parse error:', err)
+      }
+    }
+
+    return () => {
+      eventSource.close()
+    }
   }, [resolvedParams.cardCode])
 
   const remaining = member ? member.visits_total - member.visits_used : 0

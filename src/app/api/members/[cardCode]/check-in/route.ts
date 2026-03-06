@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyAdminToken } from "@/lib/adminAuth";
+import { publishMemberUpdated } from "@/lib/memberEvents";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,6 +44,8 @@ export async function POST(
       where: { id: member.id },
       data: { visitsUsed: { increment: 1 } },
     });
+
+    publishMemberUpdated(cardCode, "check-in");
 
     return NextResponse.json({
       id: updatedMember.id,

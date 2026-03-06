@@ -21,7 +21,13 @@ export async function GET(
     });
 
     if (!card) {
-      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Member not found" },
+        {
+          status: 404,
+          headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" },
+        }
+      );
     }
 
     // Auto-activate card on first access if it's inactive
@@ -33,15 +39,26 @@ export async function GET(
       card.isActive = true;
     }
 
-    return NextResponse.json({
+    return NextResponse.json(
+      {
         id: card.member.id,
         cardCode: card.cardCode,
         name: `${card.member.firstName} ${card.member.secondName}`,
         visits_total: card.member.visitsTotal,
         visits_used: card.member.visitsUsed,
-        isActive: card.isActive
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        isActive: card.isActive,
+      },
+      {
+        headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" },
+      }
+    );
+  } catch {
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      {
+        status: 500,
+        headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" },
+      }
+    );
   }
 }
