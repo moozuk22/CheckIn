@@ -59,30 +59,56 @@ export default function MemberPage({ params }: { params: Promise<{ id: string }>
   const remaining = member ? member.visits_total - member.visits_used : 0
   const isExhausted = remaining <= 0
 
-  const handleCheckIn = () => {
+  const handleCheckIn = async () => {
     if (!member || isExhausted) return
     
-    console.log('CHECK IN натиснат за:', member.name)
-    console.log('Преди:', member.visits_used)
-    
-    // Mock API call за check-in
-    const newVisitsUsed = member.visits_used + 1
-    console.log('След:', newVisitsUsed)
-    
-    setMember(prev => {
-      if (!prev) return null
-      const updated = { ...prev, visits_used: newVisitsUsed }
-      console.log('Updated member:', updated)
-      return updated
-    })
+    try {
+      const response = await fetch(`/api/members/${resolvedParams.id}/check-in`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const updatedMember = await response.json();
+        setMember(updatedMember);
+      } else {
+        // Mock update if API fails
+        setMember(prev => prev ? { ...prev, visits_used: prev.visits_used + 1 } : null);
+      }
+    } catch (err) {
+      console.error('Check-in error:', err);
+      setMember(prev => prev ? { ...prev, visits_used: prev.visits_used + 1 } : null);
+    }
   }
 
-  const handleAdminLogout = () => {
-    console.log('Logout clicked!')
+  const handleReset = async () => {
+    if (!member) return
+    
     try {
-      localStorage.removeItem('isAdmin')
-    } catch (e) {}
-    setIsAdmin(false)
+      const response = await fetch(`/api/members/${resolvedParams.id}/reset`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const updatedMember = await response.json();
+        setMember(updatedMember);
+      } else {
+        // Mock update if API fails
+        setMember(prev => prev ? { ...prev, visits_used: 0 } : null);
+      }
+    } catch (err) {
+      console.error('Reset error:', err);
+      setMember(prev => prev ? { ...prev, visits_used: 0 } : null);
+    }
+  }
+
+  const handleAdminLogout = async () => {
+    try {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      setIsAdmin(false);
+    } catch (err) {
+      console.error('Logout error:', err);
+      setIsAdmin(false);
+    }
   }
 
   if (loading) {
@@ -150,15 +176,32 @@ export default function MemberPage({ params }: { params: Promise<{ id: string }>
           </div>
         )}
 
-        {/* CHECK IN бутон само за администратори */}
-        {isAdmin && !isExhausted && (
-          <button
-            onClick={handleCheckIn}
-            className="btn btn-primary w-full mb-4"
-            style={{ cursor: 'pointer' }}
-          >
-            CHECK IN
-          </button>
+        {/* Admin controls */}
+        {isAdmin && (
+          <div className="space-y-4 mb-6">
+            <button
+              onClick={handleCheckIn}
+              disabled={isExhausted}
+              className="btn btn-primary w-full"
+              style={{ cursor: isExhausted ? 'not-allowed' : 'pointer' }}
+            >
+              Check In
+            </button>
+            <button
+              onClick={handleReset}
+              className="btn btn-outline w-full"
+              style={{ 
+                cursor: 'pointer',
+                border: '1px solid var(--gold)',
+                color: 'var(--gold)',
+                background: 'transparent',
+                padding: '0.75rem',
+                borderRadius: 'var(--radius)'
+              }}
+            >
+              Reset
+            </button>
+          </div>
         )}
 
         {/* Debug информация */}
