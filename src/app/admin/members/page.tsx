@@ -99,7 +99,13 @@ export default function AdminMembersPage() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button 
-                    onClick={() => router.push(`/member/${member.id}`)}
+                    onClick={() => {
+                      if (member.card?.cardCode) {
+                        router.push(`/member/${member.card.cardCode}`);
+                      } else {
+                        alert("This member has no card assigned.");
+                      }
+                    }}
                     className="text-indigo-600 hover:text-indigo-900"
                   >
                     View Page
