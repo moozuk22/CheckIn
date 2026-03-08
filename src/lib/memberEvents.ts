@@ -1,5 +1,5 @@
 type MemberEvent = {
-  type: "check-in" | "reset" | "question-created";
+  type: "check-in" | "reset" | "questions-updated";
   cardCode: string;
   timestamp: number;
 };
@@ -58,7 +58,7 @@ export function publishQuestionsUpdated() {
     if (!set || set.size === 0) continue;
 
     const event: MemberEvent = {
-      type: "question-created",
+      type: "questions-updated",
       cardCode,
       timestamp: eventTimestamp,
     };
