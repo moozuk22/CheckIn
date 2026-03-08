@@ -118,7 +118,7 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
         if (payload.type === 'check-in' || payload.type === 'reset') {
           await fetchMember(resolvedParams.cardCode)
         }
-        if (payload.type === 'question-created' && !isAdmin) {
+        if ((payload.type === 'questions-updated' || payload.type === 'question-created') && !isAdmin) {
           await refreshQuestions()
         }
       } catch (err) {
@@ -130,6 +130,42 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
       eventSource.close()
     }
   }, [resolvedParams.cardCode, isAdmin])
+
+  useEffect(() => {
+    if (isAdmin) return
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== 'questions_updated_at') return
+      void refreshQuestions()
+    }
+
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+    }
+  }, [isAdmin])
+
+  useEffect(() => {
+    if (isAdmin) return
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshQuestions()
+      }
+    }
+
+    const onFocus = () => {
+      void refreshQuestions()
+    }
+
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [isAdmin])
 
   const remaining = member ? member.visits_total - member.visits_used : 0
   const isExhausted = member ? remaining <= 0 : false
