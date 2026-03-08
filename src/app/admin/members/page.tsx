@@ -24,6 +24,16 @@ interface Question {
   question?: string;
   createdAt: string;
   isActive: boolean;
+  answersCount?: number;
+}
+
+interface QuestionAnswer {
+  id: string;
+  answer: string;
+  member: {
+    firstName: string;
+    secondName: string;
+  };
 }
 
 export default function AdminMembersPage() {
@@ -33,6 +43,9 @@ export default function AdminMembersPage() {
   const [deletingQuestion, setDeletingQuestion] = useState<Question | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletingQuestion, setIsDeletingQuestion] = useState(false);
+  const [selectedQuestionAnswers, setSelectedQuestionAnswers] = useState<Question | null>(null);
+  const [questionAnswers, setQuestionAnswers] = useState<QuestionAnswer[]>([]);
+  const [isLoadingAnswers, setIsLoadingAnswers] = useState(false);
   const [view, setView] = useState<'members' | 'questions'>('members');
   const [questions, setQuestions] = useState<Question[]>([]);
   const router = useRouter();
@@ -121,6 +134,31 @@ export default function AdminMembersPage() {
       alert("Грешка при изтриване на въпрос.");
     } finally {
       setIsDeletingQuestion(false);
+    }
+  };
+
+  const handleViewAnswers = async (question: Question) => {
+    setSelectedQuestionAnswers(question);
+    setQuestionAnswers([]);
+    setIsLoadingAnswers(true);
+
+    try {
+      const response = await fetch(`/api/admin/questions/${question.id}/answers`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        alert("Грешка при зареждане на отговорите.");
+        return;
+      }
+
+      const data: { answers: QuestionAnswer[] } = await response.json();
+      setQuestionAnswers(data.answers ?? []);
+    } catch (err) {
+      console.error("Error fetching question answers:", err);
+      alert("Грешка при зареждане на отговорите.");
+    } finally {
+      setIsLoadingAnswers(false);
     }
   };
 
@@ -367,6 +405,12 @@ export default function AdminMembersPage() {
 
               <div className="flex gap-3 mt-4">
                 <button
+                  onClick={() => handleViewAnswers(question)}
+                  className="btn btn-primary w-full"
+                >
+                  Виж отговори ({question.answersCount ?? 0})
+                </button>
+                <button
                   onClick={() => router.push(`/admin/questions/${question.id}/edit`)}
                   className="btn btn-secondary w-full"
                 >
@@ -452,6 +496,56 @@ export default function AdminMembersPage() {
                 disabled={isDeletingQuestion}
               >
                 {isDeletingQuestion ? "Изтриване..." : "Изтрий"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedQuestionAnswers && (
+        <div className="modal-overlay">
+          <div className="modal-content fade-in" style={{ maxWidth: "700px", width: "90%" }}>
+            <h3 className="text-gold mb-4">
+              Отговори за въпрос
+            </h3>
+            <p className="mb-4">
+              <strong>{selectedQuestionAnswers.text || selectedQuestionAnswers.question || "Въпрос"}</strong>
+            </p>
+
+            <div
+              style={{
+                maxHeight: "45vh",
+                overflowY: "auto",
+                border: "1px solid var(--border-color)",
+                borderRadius: "10px",
+                padding: "12px",
+                background: "var(--bg-secondary)",
+              }}
+            >
+              {isLoadingAnswers && <p>Зареждане...</p>}
+              {!isLoadingAnswers && questionAnswers.length === 0 && (
+                <p className="text-muted">Няма отговори.</p>
+              )}
+              {!isLoadingAnswers &&
+                questionAnswers.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      padding: "10px 0",
+                      borderBottom: "1px solid var(--border-color)",
+                    }}
+                  >
+                    <strong>{item.member.firstName}</strong> <strong>{item.member?.secondName}</strong>: {item.answer}
+                  </div>
+                ))}
+            </div>
+
+            <div className="flex justify-center mt-4">
+              <button
+                onClick={() => setSelectedQuestionAnswers(null)}
+                className="btn btn-secondary px-6"
+              >
+                Затвори
               </button>
             </div>
           </div>

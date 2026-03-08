@@ -52,12 +52,24 @@ export async function GET(request: NextRequest) {
 
   try {
     const questions = await prisma.question.findMany({
+      include: {
+        _count: {
+          select: {
+            answers: true,
+          },
+        },
+      },
       orderBy: {
         createdAt: "desc",
       },
     });
 
-    return NextResponse.json(questions);
+    return NextResponse.json(
+      questions.map((question) => ({
+        ...question,
+        answersCount: question._count.answers,
+      }))
+    );
   } catch (error) {
     console.error("Error fetching questions:", error);
     return NextResponse.json({ error: "Failed to fetch questions" }, { status: 500 });
