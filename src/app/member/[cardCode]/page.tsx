@@ -35,6 +35,18 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
   const [answerStatus, setAnswerStatus] = useState<Record<string, string>>({})
   const router = useRouter()
 
+  const refreshQuestions = async () => {
+    try {
+      const questionsRes = await fetch('/api/questions', { cache: 'no-store' })
+      if (questionsRes.ok) {
+        const questionsData: Question[] = await questionsRes.json()
+        setQuestions(questionsData)
+      }
+    } catch (err) {
+      console.error('Questions refresh error:', err)
+    }
+  }
+
   const fetchMember = async (cardCode: string, shouldSetLoading = false) => {
     if (shouldSetLoading) {
       setLoading(true)
@@ -72,15 +84,8 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
         setIsAdmin(sessionData.isAdmin)
 
         if (!sessionData.isAdmin) {
-          const [questionsRes, answersRes] = await Promise.all([
-            fetch('/api/questions'),
-            fetch(`/api/members/${resolvedParams.cardCode}/answers`, { cache: 'no-store' }),
-          ])
-
-          if (questionsRes.ok) {
-            const questionsData: Question[] = await questionsRes.json()
-            setQuestions(questionsData)
-          }
+          const answersRes = await fetch(`/api/members/${resolvedParams.cardCode}/answers`, { cache: 'no-store' })
+          await refreshQuestions()
 
           if (answersRes.ok) {
             const answersData: { answers: MemberAnswer[] } = await answersRes.json()
@@ -107,11 +112,14 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
   useEffect(() => {
     const eventSource = new EventSource(`/api/members/${resolvedParams.cardCode}/events`)
 
-    eventSource.onmessage = (event) => {
+    eventSource.onmessage = async (event) => {
       try {
         const payload = JSON.parse(event.data) as { type?: string }
         if (payload.type === 'check-in' || payload.type === 'reset') {
-          fetchMember(resolvedParams.cardCode)
+          await fetchMember(resolvedParams.cardCode)
+        }
+        if (payload.type === 'question-created' && !isAdmin) {
+          await refreshQuestions()
         }
       } catch (err) {
         console.error('SSE parse error:', err)
@@ -121,7 +129,7 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
     return () => {
       eventSource.close()
     }
-  }, [resolvedParams.cardCode])
+  }, [resolvedParams.cardCode, isAdmin])
 
   const remaining = member ? member.visits_total - member.visits_used : 0
   const isExhausted = member ? remaining <= 0 : false

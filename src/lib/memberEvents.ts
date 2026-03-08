@@ -1,5 +1,5 @@
 type MemberEvent = {
-  type: "check-in" | "reset";
+  type: "check-in" | "reset" | "question-created";
   cardCode: string;
   timestamp: number;
 };
@@ -47,6 +47,28 @@ export function publishMemberUpdated(
       subscriber(event);
     } catch (error) {
       console.error("Member event subscriber error:", error);
+    }
+  }
+}
+
+export function publishQuestionsUpdated() {
+  const eventTimestamp = Date.now();
+
+  for (const [cardCode, set] of subscribersByCardCode.entries()) {
+    if (!set || set.size === 0) continue;
+
+    const event: MemberEvent = {
+      type: "question-created",
+      cardCode,
+      timestamp: eventTimestamp,
+    };
+
+    for (const subscriber of set) {
+      try {
+        subscriber(event);
+      } catch (error) {
+        console.error("Member event subscriber error:", error);
+      }
     }
   }
 }
