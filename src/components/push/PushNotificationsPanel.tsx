@@ -564,9 +564,9 @@ export function PushNotificationsPanel({ cardCode }: PushNotificationsPanelProps
             type="button"
             onClick={handleEnableNotifications}
             className="btn btn-primary"
-            disabled={isBusy || permission === "denied"}
+            disabled={isBusy || permission === "denied" || isSubscribed}
           >
-            {isBusy ? "Please wait..." : "Enable Notifications"}
+            {isBusy ? "Please wait..." : "Позволи известия"}
           </button>
 
           {isSubscribed && (
@@ -576,7 +576,7 @@ export function PushNotificationsPanel({ cardCode }: PushNotificationsPanelProps
               className="btn btn-secondary"
               disabled={isBusy}
             >
-              Disable Notifications
+              Блокирай известията
             </button>
           )}
         </div>
