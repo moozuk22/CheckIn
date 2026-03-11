@@ -229,6 +229,12 @@ export default function AdminMembersPage() {
         >
           Добави член
         </button>
+        <button
+          onClick={() => router.push("/admin/notifications")}
+          className="btn btn-primary"
+        >
+          Изпрати известие
+        </button>
         <button 
           onClick={() => router.push("/admin/questions/add")}
           className="btn btn-primary"
