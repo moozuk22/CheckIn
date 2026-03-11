@@ -299,6 +299,7 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
           </button>
         </div>
       )}
+
       <div className="member-card" style={{ maxWidth: '420px', width: '100%' }}>
         <div className="text-center mb-6">
           <img
@@ -332,24 +333,31 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
           </div>
         )}
 
+        {member && isExhausted && (
+          <div className="alert alert-warning mb-6">
+            <strong>Картата е изчерпана</strong>
+            <p className="mt-2 mb-0">Няма оставащи посещения. Моля, свържете се с администратор.</p>
+          </div>
+        )}
+
         {member && !isAdmin && (
           <PushNotificationsPanel cardCode={resolvedParams.cardCode} />
         )}
 
         {!isAdmin && questions.length > 0 && (
-          <div className="mb-6" style={{ 
-            background: 'var(--bg-secondary)', 
-            borderRadius: '8px', 
+          <div className="mb-6" style={{
+            background: 'var(--bg-secondary)',
+            borderRadius: '8px',
             padding: '16px',
             border: '1px solid var(--border-color)',
             maxHeight: '50vh',
             overflow: 'auto'
           }}>
-            <h3 style={{ 
-              fontSize: '1rem', 
-              fontWeight: '600', 
-              marginBottom: '12px', 
-              color: 'var(--accent-gold)' 
+            <h3 style={{
+              fontSize: '1rem',
+              fontWeight: '600',
+              marginBottom: '12px',
+              color: 'var(--accent-gold)'
             }}>
               Въпроси:
             </h3>
@@ -362,7 +370,7 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
                 questions.map((question, index) => {
                   if (index % 2 === 0 && index > 0) {
                     return (
-                      <div key={question.id} style={{ 
+                      <div key={question.id} style={{
                         marginBottom: '12px',
                         paddingBottom: '12px',
                         borderBottom: '1px solid var(--border-color)',
@@ -410,7 +418,7 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
                     );
                   } else if (index === questions.length - 1) {
                     return (
-                      <div key={question.id} style={{ 
+                      <div key={question.id} style={{
                         marginBottom: '0',
                         paddingBottom: '0',
                         borderBottom: 'none',
@@ -458,7 +466,7 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
                     );
                   } else {
                     return (
-                      <div key={question.id} style={{ 
+                      <div key={question.id} style={{
                         marginBottom: '12px',
                         paddingBottom: '12px',
                         borderBottom: '1px solid var(--border-color)',
@@ -511,12 +519,7 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
           </div>
         )}
 
-        {member && isExhausted && (
-          <div className="alert alert-warning mb-6">
-            <strong>Картата е изчерпана</strong>
-            <p className="mt-2 mb-0">Няма оставащи посещения. Моля, свържете се с администратор.</p>
-          </div>
-        )}
+
 
         {isAdmin && member && (
           <div className="space-y-4 mb-6">
