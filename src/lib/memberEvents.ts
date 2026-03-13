@@ -1,5 +1,5 @@
 type MemberEvent = {
-  type: "check-in" | "reset" | "questions-updated";
+  type: "check-in" | "reset" | "questions-updated" | "notification-created";
   cardCode: string;
   timestamp: number;
 };
@@ -33,7 +33,7 @@ export function subscribeMemberEvents(
 
 export function publishMemberUpdated(
   cardCode: string,
-  type: "check-in" | "reset"
+  type: "check-in" | "reset" | "notification-created"
 ) {
   const set = subscribersByCardCode.get(cardCode);
   if (!set || set.size === 0) return;

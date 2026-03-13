@@ -8,14 +8,15 @@ datasource db {
 }
 
 model Member {
-  id          String                 @id @default(uuid())
-  firstName   String
-  secondName  String
-  visitsTotal Int                    @default(0)
-  visitsUsed  Int                    @default(0)
-  cards       Card[]
-  answers     MemberQuestionAnswer[]
+  id                    String                 @id @default(uuid())
+  firstName             String
+  secondName            String
+  visitsTotal           Int                    @default(0)
+  visitsUsed            Int                    @default(0)
+  cards                 Card[]
+  answers               MemberQuestionAnswer[]
   pushSubscriptions PushSubscription[]
+  notifications         MemberNotification[]
 
   @@map("members")
 }
@@ -71,4 +72,20 @@ model PushSubscription {
 
   @@index([memberId, isActive])
   @@map("push_subscriptions")
+}
+
+model MemberNotification {
+  id        String   @id @default(uuid())
+  memberId  String
+  type      String
+  title     String
+  body      String
+  url       String?
+  sentAt    DateTime @default(now())
+  readAt    DateTime?
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, sentAt])
+  @@index([memberId, readAt])
+  @@map("member_notifications")
 }

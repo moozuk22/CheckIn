@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { PushNotificationsPanel } from '@/components/push/PushNotificationsPanel'
 
@@ -11,6 +11,18 @@ interface Member {
   visits_total: number
   visits_used: number
   isActive?: boolean
+  notifications?: MemberNotification[]
+  unread_notifications?: number
+}
+
+interface MemberNotification {
+  id: string
+  type: string
+  title: string
+  body: string
+  url?: string | null
+  sentAt: string
+  readAt?: string | null
 }
 
 interface Question {
@@ -34,6 +46,8 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [savingAnswers, setSavingAnswers] = useState<Record<string, boolean>>({})
   const [answerStatus, setAnswerStatus] = useState<Record<string, string>>({})
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const notificationsDropdownRef = useRef<HTMLDivElement | null>(null)
   const router = useRouter()
 
   const refreshQuestions = async () => {
@@ -116,7 +130,11 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
     eventSource.onmessage = async (event) => {
       try {
         const payload = JSON.parse(event.data) as { type?: string }
-        if (payload.type === 'check-in' || payload.type === 'reset') {
+        if (
+          payload.type === 'check-in' ||
+          payload.type === 'reset' ||
+          payload.type === 'notification-created'
+        ) {
           await fetchMember(resolvedParams.cardCode)
         }
         if ((payload.type === 'questions-updated' || payload.type === 'question-created') && !isAdmin) {
@@ -151,11 +169,13 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
 
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
+        void fetchMember(resolvedParams.cardCode)
         void refreshQuestions()
       }
     }
 
     const onFocus = () => {
+      void fetchMember(resolvedParams.cardCode)
       void refreshQuestions()
     }
 
@@ -168,8 +188,64 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
     }
   }, [isAdmin])
 
+  useEffect(() => {
+    const onPointerDown = (event: MouseEvent) => {
+      if (
+        isNotificationsOpen &&
+        notificationsDropdownRef.current &&
+        !notificationsDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsNotificationsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', onPointerDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+    }
+  }, [isNotificationsOpen])
+
   const remaining = member ? member.visits_total - member.visits_used : 0
   const isExhausted = member ? remaining <= 0 : false
+  const unreadCount = Number(member?.unread_notifications ?? 0)
+  const formatNotificationTime = (value: string) => {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) {
+      return value
+    }
+
+    return new Intl.DateTimeFormat('bg-BG', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(date)
+  }
+
+  const markNotificationsAsRead = async () => {
+    if (!member || !member.unread_notifications || member.unread_notifications <= 0) return
+
+    try {
+      await fetch(`/api/members/${resolvedParams.cardCode}/notifications/read`, {
+        method: 'POST',
+      })
+      setMember((prev) => {
+        if (!prev) return prev
+        const nowIso = new Date().toISOString()
+        return {
+          ...prev,
+          unread_notifications: 0,
+          notifications: prev.notifications?.map((notification) =>
+            notification.readAt ? notification : { ...notification, readAt: nowIso }
+          ),
+        }
+      })
+    } catch (err) {
+      console.error('Mark notifications read error:', err)
+    }
+  }
 
   const handleAnswerChange = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }))
@@ -301,6 +377,122 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
       )}
 
       <div className="member-card" style={{ maxWidth: '420px', width: '100%' }}>
+        {member && !isAdmin && (
+          <div ref={notificationsDropdownRef} style={{ position: 'relative', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsNotificationsOpen((prev) => {
+                  const next = !prev
+                  if (next) {
+                    void markNotificationsAsRead()
+                  }
+                  return next
+                })
+              }}
+              aria-label="Toggle notifications"
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '999px',
+                padding: 0,
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '10px',
+                cursor: 'pointer',
+                border: 'none',
+                background: 'var(--accent-gold-color)',
+                color: '#fff',
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 4.5C9.51472 4.5 7.5 6.51472 7.5 9V12.2143C7.5 13.1375 7.18026 14.0322 6.59512 14.7462L5.5 16.0833H18.5L17.4049 14.7462C16.8197 14.0322 16.5 13.1375 16.5 12.2143V9C16.5 6.51472 14.4853 4.5 12 4.5Z"
+                  stroke="#FFFFFF"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="12" cy="18" r="1.2" fill="#FFFFFF" />
+              </svg>
+              {unreadCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '-3px',
+                    right: '-3px',
+                    minWidth: '18px',
+                    height: '18px',
+                    borderRadius: '999px',
+                    background: '#ef4444',
+                    color: '#fff',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 4px',
+                    border: '1px solid rgba(0,0,0,0.25)',
+                  }}
+                >
+                  {Math.min(unreadCount, 99)}
+                </span>
+              )}
+            </button>
+
+            {isNotificationsOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '50px',
+                  right: 0,
+                  width: '320px',
+                  maxWidth: '100%',
+                  maxHeight: '300px',
+                  overflow: 'auto',
+                  zIndex: 20,
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '10px',
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
+                  padding: '12px',
+                }}
+              >
+                <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '10px', color: 'var(--accent-gold-color)' }}>
+                  Известия
+                </div>
+                {member.notifications && member.notifications.length > 0 ? (
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {member.notifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        style={{
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '6px',
+                          padding: '8px',
+                          background: 'rgba(255,255,255,0.02)'
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, marginBottom: '4px', fontSize: '13px' }}>{notification.title}</div>
+                        <div style={{ fontSize: '12px', opacity: 0.95 }}>{notification.body}</div>
+                        <div style={{ fontSize: '10px', opacity: 0.75, marginTop: '6px' }}>
+                          {formatNotificationTime(notification.sentAt)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '12px', opacity: 0.75 }}>
+                    Няма скорошни известия
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="text-center mb-6">
           <img
             src="/logo.png"
@@ -343,7 +535,6 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
         {member && !isAdmin && (
           <PushNotificationsPanel cardCode={resolvedParams.cardCode} />
         )}
-
         {!isAdmin && questions.length > 0 && (
           <div className="mb-6" style={{
             background: 'var(--bg-secondary)',

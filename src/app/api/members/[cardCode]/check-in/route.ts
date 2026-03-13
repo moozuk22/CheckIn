@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyAdminToken } from "@/lib/adminAuth";
 import { publishMemberUpdated } from "@/lib/memberEvents";
+import { saveMemberNotificationHistory } from "@/lib/push/history";
 import { buildNotificationPayload } from "@/lib/push/templates";
 import { sendPushToMember } from "@/lib/push/service";
 
@@ -57,7 +58,10 @@ export async function POST(
         remainingVisits,
         url: `/member/${cardCode}`,
       });
-      await sendPushToMember(updatedMember.id, visitPayload);
+      const visitResult = await sendPushToMember(updatedMember.id, visitPayload);
+      if (visitResult.sent > 0) {
+        await saveMemberNotificationHistory(updatedMember.id, "visit_registered", visitPayload);
+      }
 
       if (remainingVisits > 0 && remainingVisits <= 1) {
         const almostFinishedPayload = buildNotificationPayload({
@@ -66,7 +70,14 @@ export async function POST(
           remainingVisits,
           url: `/member/${cardCode}`,
         });
-        await sendPushToMember(updatedMember.id, almostFinishedPayload);
+        const almostFinishedResult = await sendPushToMember(updatedMember.id, almostFinishedPayload);
+        if (almostFinishedResult.sent > 0) {
+          await saveMemberNotificationHistory(
+            updatedMember.id,
+            "membership_almost_finished",
+            almostFinishedPayload
+          );
+        }
       }
     } catch (pushError) {
       console.error("Push notification dispatch failed after check-in:", pushError);

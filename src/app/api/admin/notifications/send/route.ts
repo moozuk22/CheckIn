@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyAdminToken } from "@/lib/adminAuth";
 import { buildNotificationPayload } from "@/lib/push/templates";
+import { saveMemberNotificationHistory } from "@/lib/push/history";
 import { sendPushToMember } from "@/lib/push/service";
 import type { NotificationTemplateType } from "@/lib/push/types";
 
@@ -135,6 +136,9 @@ export async function POST(request: NextRequest) {
         });
 
         const sendResult = await sendPushToMember(member.id, pushPayload);
+        if (sendResult.sent > 0) {
+          await saveMemberNotificationHistory(member.id, type, pushPayload);
+        }
 
         return {
           memberId: member.id,

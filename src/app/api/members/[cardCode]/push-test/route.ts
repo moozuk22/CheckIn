@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { saveMemberNotificationHistory } from "@/lib/push/history";
 import { buildNotificationPayload } from "@/lib/push/templates";
 import { sendPushToMember } from "@/lib/push/service";
 
@@ -44,6 +45,9 @@ export async function POST(
     });
 
     const result = await sendPushToMember(card.member.id, payload);
+    if (result.sent > 0) {
+      await saveMemberNotificationHistory(card.member.id, "trainer_message", payload);
+    }
 
     return NextResponse.json({
       success: true,
