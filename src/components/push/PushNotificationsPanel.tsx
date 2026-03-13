@@ -559,14 +559,64 @@ export function PushNotificationsPanel({ cardCode }: PushNotificationsPanelProps
       )}
 
       {isSupported && (
-        <div className="flex gap-3 mt-4" style={{ flexWrap: "wrap" }}>
+        <div className="flex items-center justify-center gap-3 mt-4" style={{ flexWrap: "wrap" }}>
           <button
             type="button"
             onClick={handleEnableNotifications}
             className="btn btn-primary"
             disabled={isBusy || permission === "denied" || isSubscribed}
+            style={{
+              background: "linear-gradient(135deg, rgb(201, 168, 76), rgb(232, 201, 109), rgb(201, 168, 76))",
+              color: "#000000",
+              border: "2px solid rgb(201, 168, 76)",
+              padding: "10px 20px",
+              fontSize: "14px",
+              fontWeight: "600",
+              borderRadius: "12px",
+              boxShadow: "0 4px 20px rgba(201, 168, 76, 0.4), 0 0 20px rgba(201, 168, 76, 0.2)",
+              textTransform: "uppercase",
+              letterSpacing: "1px",
+              transition: "all 0.3s ease",
+              transform: "scale(1.05)",
+              minWidth: "200px",
+              position: "relative",
+              overflow: "hidden",
+              animation: "ripple 3s ease infinite"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.08)";
+              e.currentTarget.style.boxShadow = "0 6px 30px rgba(201, 168, 76, 0.6), 0 0 30px rgba(201, 168, 76, 0.3)";
+              e.currentTarget.style.animation = "none";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1.05)";
+              e.currentTarget.style.boxShadow = "0 4px 20px rgba(201, 168, 76, 0.4), 0 0 20px rgba(201, 168, 76, 0.2)";
+              e.currentTarget.style.animation = "ripple 3s ease infinite";
+            }}
           >
             {isBusy ? "Please wait..." : "Позволи известия"}
+            <style jsx>{`
+              @keyframes ripple {
+                0% {
+                  box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.7),
+                             0 0 0 0 rgba(201, 168, 76, 0.5),
+                             0 0 0 0 rgba(201, 168, 76, 0.3),
+                             0 4px 20px rgba(201, 168, 76, 0.4);
+                }
+                50% {
+                  box-shadow: 0 0 0 10px rgba(201, 168, 76, 0),
+                             0 0 0 20px rgba(201, 168, 76, 0),
+                             0 0 0 30px rgba(201, 168, 76, 0),
+                             0 4px 20px rgba(201, 168, 76, 0.4);
+                }
+                100% {
+                  box-shadow: 0 0 0 0 rgba(201, 168, 76, 0),
+                             0 0 0 0 rgba(201, 168, 76, 0),
+                             0 0 0 0 rgba(201, 168, 76, 0),
+                             0 4px 20px rgba(201, 168, 76, 0.4);
+                }
+              }
+            `}</style>
           </button>
 
           {isSubscribed && (
