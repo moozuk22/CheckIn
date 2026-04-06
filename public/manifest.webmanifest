@@ -3,7 +3,7 @@
   "short_name": "Dalida Dance",
   "description": "NFC member profile and attendance tracking with browser notifications.",
   "id": "/app",
-  "start_url": "/",
+  "start_url": "/launch",
   "scope": "/",
   "display": "standalone",
   "background_color": "#000000",
