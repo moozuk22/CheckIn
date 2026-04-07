@@ -62,6 +62,7 @@ export default function FolderDetailPage() {
   const [editMediaName, setEditMediaName] = useState("");
   const [deletingItem, setDeletingItem] = useState<FolderItemEntry | null>(null);
   const [deletingChild, setDeletingChild] = useState<ChildFolder | null>(null);
+  const [playingItem, setPlayingItem] = useState<FolderItemEntry | null>(null);
 
   const fetchFolder = useCallback(async () => {
     setLoading(true);
@@ -403,6 +404,15 @@ export default function FolderDetailPage() {
                     </div>
                   </div>
                   <div className="flex gap-3">
+                    {item.mediaFile.status === "READY" && (
+                      <button
+                        className="btn btn-primary"
+                        style={{ padding: "6px 12px", fontSize: "12px" }}
+                        onClick={() => setPlayingItem(item)}
+                      >
+                        Пусни
+                      </button>
+                    )}
                     <button
                       className="btn btn-secondary"
                       style={{ padding: "6px 12px", fontSize: "12px" }}
@@ -577,6 +587,40 @@ export default function FolderDetailPage() {
                 Изтрий
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {playingItem && (
+        <div className="modal-overlay" onClick={() => setPlayingItem(null)}>
+          <div
+            className="modal-content"
+            style={{ maxWidth: "800px", textAlign: "left", padding: "24px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center" style={{ marginBottom: "16px" }}>
+              <strong style={{ fontSize: "1rem" }}>
+                {playingItem.displayName || playingItem.mediaFile.displayName}
+              </strong>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: "4px 12px", fontSize: "12px" }}
+                onClick={() => setPlayingItem(null)}
+              >
+                Затвори
+              </button>
+            </div>
+            <video
+              key={playingItem.mediaFile.id}
+              controls
+              autoPlay
+              style={{ width: "100%", borderRadius: "8px", background: "#000", display: "block" }}
+            >
+              <source
+                src={`/api/admin/media/${playingItem.mediaFile.id}/stream`}
+                type="video/mp4"
+              />
+            </video>
           </div>
         </div>
       )}
