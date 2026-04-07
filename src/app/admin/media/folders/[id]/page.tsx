@@ -278,7 +278,7 @@ export default function FolderDetailPage() {
             <span className="folder-breadcrumb-sep">/</span>
             <button
               className="folder-breadcrumb-item"
-              onClick={() => router.push(`/admin/media/folders/${folder.parent.id}`)}
+              onClick={() => router.push(`/admin/media/folders/${folder.parent!.id}`)}
             >
               {folder.parent.name}
             </button>
