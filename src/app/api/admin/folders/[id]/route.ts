@@ -42,6 +42,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                 isVisible: true,
                 durationSecs: true,
                 createdAt: true,
+                _count: {
+                  select: { folderItems: true },
+                },
               },
             },
           },
@@ -69,6 +72,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         mediaFile: {
           ...item.mediaFile,
           sizeBytes: Number(item.mediaFile.sizeBytes),
+          references: item.mediaFile._count.folderItems,
         },
       })),
     });
