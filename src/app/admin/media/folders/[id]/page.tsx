@@ -30,6 +30,7 @@ interface FolderItemEntry {
     sizeBytes: number;
     status: string;
     isVisible: boolean;
+    references: number;
     durationSecs: number | null;
     createdAt: string;
   };
@@ -57,6 +58,8 @@ export default function FolderDetailPage() {
   const [selectedFileId, setSelectedFileId] = useState("");
   const [showRename, setShowRename] = useState(false);
   const [renameName, setRenameName] = useState("");
+  const [editingMedia, setEditingMedia] = useState<FolderItemEntry | null>(null);
+  const [editMediaName, setEditMediaName] = useState("");
   const [deletingItem, setDeletingItem] = useState<FolderItemEntry | null>(null);
   const [deletingChild, setDeletingChild] = useState<ChildFolder | null>(null);
 
@@ -127,11 +130,61 @@ export default function FolderDetailPage() {
         method: "DELETE",
       });
       if (res.ok) {
-        setItems(items.filter((i) => i.id !== deletingItem.id));
+        setItems((prev) => prev.filter((i) => i.id !== deletingItem.id));
         setDeletingItem(null);
       }
     } catch {
-      alert("Грешка при премахване.");
+      alert("Грешка при изтриване.");
+    }
+  };
+
+  const handleToggleVisibility = async (item: FolderItemEntry) => {
+    try {
+      const res = await fetch(`/api/admin/media/${item.mediaFile.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isVisible: !item.mediaFile.isVisible }),
+      });
+      if (res.ok) {
+        setItems((prev) =>
+          prev.map((i) =>
+            i.id === item.id
+              ? {
+                  ...i,
+                  mediaFile: { ...i.mediaFile, isVisible: !i.mediaFile.isVisible },
+                }
+              : i
+          )
+        );
+      }
+    } catch {
+      alert("Грешка при промяна на видимостта.");
+    }
+  };
+
+  const handleRenameMedia = async () => {
+    if (!editingMedia || !editMediaName.trim()) return;
+    try {
+      const res = await fetch(`/api/admin/media/${editingMedia.mediaFile.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName: editMediaName.trim() }),
+      });
+      if (res.ok) {
+        setItems((prev) =>
+          prev.map((i) =>
+            i.id === editingMedia.id
+              ? {
+                  ...i,
+                  mediaFile: { ...i.mediaFile, displayName: editMediaName.trim() },
+                }
+              : i
+          )
+        );
+        setEditingMedia(null);
+      }
+    } catch {
+      alert("Грешка при преименуване.");
     }
   };
 
@@ -140,7 +193,7 @@ export default function FolderDetailPage() {
     try {
       const res = await fetch(`/api/admin/folders/${deletingChild.id}`, { method: "DELETE" });
       if (res.ok) {
-        setChildren(children.filter((c) => c.id !== deletingChild.id));
+        setChildren((prev) => prev.filter((c) => c.id !== deletingChild.id));
         setDeletingChild(null);
       }
     } catch {
@@ -157,7 +210,7 @@ export default function FolderDetailPage() {
         body: JSON.stringify({ name: renameName.trim() }),
       });
       if (res.ok) {
-        setFolder((prev) => prev ? { ...prev, name: renameName.trim() } : prev);
+        setFolder((prev) => (prev ? { ...prev, name: renameName.trim() } : prev));
         setShowRename(false);
       }
     } catch {
@@ -216,7 +269,6 @@ export default function FolderDetailPage() {
 
   return (
     <div className="container p-6 fade-in">
-      {/* Breadcrumb */}
       <div className="folder-breadcrumb">
         <button className="folder-breadcrumb-item" onClick={() => router.push("/admin/media")}>
           Библиотека
@@ -226,7 +278,7 @@ export default function FolderDetailPage() {
             <span className="folder-breadcrumb-sep">/</span>
             <button
               className="folder-breadcrumb-item"
-              onClick={() => router.push(`/admin/media/folders/${folder.parent!.id}`)}
+              onClick={() => router.push(`/admin/media/folders/${folder.parent.id}`)}
             >
               {folder.parent.name}
             </button>
@@ -264,7 +316,6 @@ export default function FolderDetailPage() {
         </button>
       </div>
 
-      {/* Child folders */}
       {children.length > 0 && (
         <div className="mb-8">
           <h3 style={{ marginBottom: "12px" }}>Подпапки</h3>
@@ -296,30 +347,80 @@ export default function FolderDetailPage() {
         </div>
       )}
 
-      {/* Folder items (videos) */}
       {items.length > 0 ? (
         <div>
           <h3 style={{ marginBottom: "12px" }}>Видеа</h3>
-          <div className="grid grid-cols-1" style={{ gap: "8px" }}>
+          <div className="grid grid-cols-1" style={{ gap: "12px" }}>
             {items.map((item) => (
-              <div key={item.id} className="card" style={{ padding: "12px 16px" }}>
-                <div className="flex justify-between items-center" style={{ gap: "8px" }}>
-                  <div style={{ flex: 1 }}>
-                    <strong>{item.displayName || item.mediaFile.displayName}</strong>
-                    <div className="text-muted" style={{ fontSize: "0.8rem" }}>
+              <div key={item.id} className="card" style={{ padding: "16px" }}>
+                <div className="flex justify-between items-center" style={{ flexWrap: "wrap", gap: "8px" }}>
+                  <div style={{ flex: 1, minWidth: "200px" }}>
+                    <div className="flex items-center gap-3">
+                      <strong style={{ fontSize: "1rem" }}>{item.displayName || item.mediaFile.displayName}</strong>
+                      <span
+                        className="badge"
+                        style={{
+                          background:
+                            item.mediaFile.status === "READY"
+                              ? "var(--success)"
+                              : item.mediaFile.status === "PROCESSING"
+                              ? "var(--warning)"
+                              : item.mediaFile.status === "FAILED"
+                              ? "var(--error)"
+                              : "var(--text-muted)",
+                          color: "#000",
+                          fontSize: "0.7rem",
+                        }}
+                      >
+                        {item.mediaFile.status === "READY"
+                          ? "Готово"
+                          : item.mediaFile.status === "PROCESSING"
+                          ? "Обработка"
+                          : item.mediaFile.status === "UPLOADING"
+                          ? "Качване"
+                          : "Неуспешно"}
+                      </span>
+                      <span
+                        className="badge"
+                        style={{
+                          background: item.mediaFile.isVisible
+                            ? "rgba(76,175,80,0.2)"
+                            : "rgba(136,136,136,0.2)",
+                          color: item.mediaFile.isVisible ? "var(--success)" : "var(--text-muted)",
+                          fontSize: "0.7rem",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => handleToggleVisibility(item)}
+                      >
+                        {item.mediaFile.isVisible ? "Видимо" : "Скрито"}
+                      </span>
+                    </div>
+                    <div className="text-muted" style={{ fontSize: "0.8rem", marginTop: "4px" }}>
                       {formatSize(item.mediaFile.sizeBytes)}
-                      {item.mediaFile.durationSecs
-                        ? ` · ${formatDuration(item.mediaFile.durationSecs)}`
-                        : ""}
+                      {item.mediaFile.durationSecs ? ` · ${formatDuration(item.mediaFile.durationSecs)}` : ""}
+                      {` · ${new Date(item.mediaFile.createdAt).toLocaleDateString("bg-BG")}`}
+                      {item.mediaFile.references > 0 ? ` · ${item.mediaFile.references} реф.` : ""}
                     </div>
                   </div>
-                  <button
-                    className="btn btn-error"
-                    style={{ padding: "4px 10px", fontSize: "11px" }}
-                    onClick={() => setDeletingItem(item)}
-                  >
-                    Премахни
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: "6px 12px", fontSize: "12px" }}
+                      onClick={() => {
+                        setEditingMedia(item);
+                        setEditMediaName(item.mediaFile.displayName);
+                      }}
+                    >
+                      Преименувай
+                    </button>
+                    <button
+                      className="btn btn-error"
+                      style={{ padding: "6px 12px", fontSize: "12px" }}
+                      onClick={() => setDeletingItem(item)}
+                    >
+                      Изтрий
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -333,7 +434,6 @@ export default function FolderDetailPage() {
         )
       )}
 
-      {/* New subfolder modal */}
       {showNewFolder && (
         <div className="modal-overlay" onClick={() => setShowNewFolder(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -359,7 +459,6 @@ export default function FolderDetailPage() {
         </div>
       )}
 
-      {/* Add video modal */}
       {showAddVideo && (
         <div className="modal-overlay" onClick={() => setShowAddVideo(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "500px" }}>
@@ -388,7 +487,6 @@ export default function FolderDetailPage() {
         </div>
       )}
 
-      {/* Rename modal */}
       {showRename && (
         <div className="modal-overlay" onClick={() => setShowRename(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -413,30 +511,54 @@ export default function FolderDetailPage() {
         </div>
       )}
 
-      {/* Delete item confirmation */}
-      {deletingItem && (
-        <div className="modal-overlay" onClick={() => setDeletingItem(null)}>
+      {editingMedia && (
+        <div className="modal-overlay" onClick={() => setEditingMedia(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginBottom: "16px" }}>Потвърждение</h3>
-            <p style={{ marginBottom: "24px" }}>
-              Премахване на <strong>{deletingItem.displayName || deletingItem.mediaFile.displayName}</strong> от тази папка?
-            </p>
-            <p className="text-muted" style={{ marginBottom: "24px", fontSize: "0.85rem" }}>
-              Физическият файл няма да бъде изтрит.
-            </p>
+            <h3 style={{ marginBottom: "16px" }}>Преименувай видео</h3>
+            <input
+              type="text"
+              value={editMediaName}
+              onChange={(e) => setEditMediaName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleRenameMedia()}
+              style={{ marginBottom: "24px" }}
+              autoFocus
+            />
             <div className="flex justify-center gap-4">
-              <button className="btn btn-secondary" onClick={() => setDeletingItem(null)}>
+              <button className="btn btn-secondary" onClick={() => setEditingMedia(null)}>
                 Отказ
               </button>
-              <button className="btn btn-error" onClick={handleRemoveItem}>
-                Премахни
+              <button className="btn btn-primary" onClick={handleRenameMedia}>
+                Запази
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete child folder confirmation */}
+      {deletingItem && (
+        <div className="modal-overlay" onClick={() => setDeletingItem(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginBottom: "16px" }}>Потвърждение</h3>
+            <p style={{ marginBottom: "24px" }}>
+              Изтриване на <strong>{deletingItem.displayName || deletingItem.mediaFile.displayName}</strong>?
+            </p>
+            <p className="text-muted" style={{ marginBottom: "24px", fontSize: "0.85rem" }}>
+              {deletingItem.mediaFile.references > 1
+                ? "Файлът е в повече от една папка. Ще бъде премахната само текущата референция."
+                : "Файлът е само в тази папка. Ще бъде изтрит от диска и от базата."}
+            </p>
+            <div className="flex justify-center gap-4">
+              <button className="btn btn-secondary" onClick={() => setDeletingItem(null)}>
+                Отказ
+              </button>
+              <button className="btn btn-error" onClick={handleRemoveItem}>
+                Изтрий
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {deletingChild && (
         <div className="modal-overlay" onClick={() => setDeletingChild(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
