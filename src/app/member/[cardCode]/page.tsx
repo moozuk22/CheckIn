@@ -914,7 +914,7 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12" /></svg>
             </button>
 
-            <div className="sd-modal-header">
+            <div className="sd-modal-header" style={{ marginBottom: "16px" }}>
               <img src="/idb-logo.svg" alt="Innline Dragon Body" className="sd-modal-logo" style={{ transform: "scale(1.2)" }} />
               <div className="sd-modal-title-wrap">
                 <p className="sd-modal-eyebrow" style={{ color: "#eab126" }}>Партньорска програма</p>
@@ -928,6 +928,10 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
               <div className="idb-highlight">
                 <span className="idb-highlight-value">-10%</span>
                 <span className="sd-highlight-label">на всички процедури</span>
+              </div>
+              <div className="idb-highlight" style={{ background: "rgba(234, 177, 38, 0.05)", borderColor: "rgba(234, 177, 38, 0.15)" }}>
+                <span className="idb-highlight-value" style={{ opacity: 0.8 }}>-5%</span>
+                <span className="sd-highlight-label">за втори пакет</span>
               </div>
             </div>
 
@@ -953,6 +957,17 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
             <div className="sd-qr-wrap">
               <p className="sd-qr-hint">Посетете ги онлайн на{" "}<a href="https://innlinedragonbody.com" target="_blank" rel="noopener noreferrer" className="sd-store-link" style={{ color: "#eab126" }}>innlinedragonbody.com</a></p>
             </div>
+
+            <div className="sd-modal-divider" style={{ background: "linear-gradient(to right, transparent, rgba(234, 177, 38, 0.3), transparent)" }} />
+
+            <div className="sd-terms">
+              <p className="sd-terms-title">Условия</p>
+              <ul className="sd-terms-list">
+                <li>Важи за всички услуги на <strong>Innline Dragon Body</strong></li>
+                <li>Не може да се комбинира с други активни промоции</li>
+                <li>Важи при представяне на промоционалния код на място</li>
+              </ul>
+            </div>
           </div>
         </div>
       )}
@@ -965,7 +980,7 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12" /></svg>
             </button>
 
-            <div className="sd-modal-header">
+            <div className="sd-modal-header" style={{ marginBottom: "16px" }}>
               <img src="/niko-logo.png" alt="Mebeli Niko" className="sd-modal-logo" />
               <div className="sd-modal-title-wrap">
                 <p className="sd-modal-eyebrow" style={{ color: "#0054a6" }}>Партньорска програма</p>
@@ -979,6 +994,10 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
               <div className="niko-highlight">
                 <span className="niko-highlight-value" style={{ color: "#3b82f6" }}>-10%</span>
                 <span className="sd-highlight-label">на редовна цена</span>
+              </div>
+              <div className="niko-highlight" style={{ background: "rgba(0, 84, 166, 0.08)", borderColor: "rgba(0, 84, 166, 0.2)" }}>
+                <span className="niko-highlight-value" style={{ color: "#93c5fd", opacity: 0.8 }}>-5%</span>
+                <span className="sd-highlight-label">на специални артикули</span>
               </div>
             </div>
 
@@ -1003,6 +1022,17 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
 
             <div className="sd-qr-wrap">
               <p className="sd-qr-hint">Разгледайте каталога им на{" "}<a href="https://mebeliniko.bg" target="_blank" rel="noopener noreferrer" className="sd-store-link" style={{ color: "#3b82f6" }}>mebeliniko.bg</a></p>
+            </div>
+
+            <div className="sd-modal-divider" style={{ background: "linear-gradient(to right, transparent, rgba(0, 84, 166, 0.3), transparent)" }} />
+
+            <div className="sd-terms">
+              <p className="sd-terms-title">Условия</p>
+              <ul className="sd-terms-list">
+                <li>Важи за всички налични артикули в <strong>Мебели NIKO</strong></li>
+                <li>Не може да се комбинира с други талони или отстъпки</li>
+                <li>Прилага се при поръчка онлайн или в шоурум</li>
+              </ul>
             </div>
           </div>
         </div>
