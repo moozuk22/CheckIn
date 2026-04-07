@@ -15,22 +15,37 @@ interface ShareLink {
   isExpired: boolean;
 }
 
-interface MediaFile {
+interface BrowserFolder {
   id: string;
-  displayName: string;
-  status: string;
+  name: string;
+  _count: { children: number; items: number };
+}
+
+interface BrowserItem {
+  id: string;
+  mediaFile: {
+    id: string;
+    displayName: string;
+    status: string;
+  };
 }
 
 export default function SharesPage() {
   const [shares, setShares] = useState<ShareLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [allFiles, setAllFiles] = useState<MediaFile[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Map<string, string>>(new Map());
   const [shareName, setShareName] = useState("");
   const [creating, setCreating] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deletingShare, setDeletingShare] = useState<ShareLink | null>(null);
+
+  // Folder browser state
+  const [browserChildren, setBrowserChildren] = useState<BrowserFolder[]>([]);
+  const [browserItems, setBrowserItems] = useState<BrowserItem[]>([]);
+  const [browserLoading, setBrowserLoading] = useState(false);
+  const [browserBreadcrumb, setBrowserBreadcrumb] = useState<{ id: string | null; name: string }[]>([]);
+
   const router = useRouter();
 
   const fetchShares = useCallback(async () => {
@@ -52,32 +67,60 @@ export default function SharesPage() {
     fetchShares();
   }, [fetchShares]);
 
-  const openCreate = async () => {
-    setShowCreate(true);
-    setSelectedIds(new Set());
-    setShareName("");
+  const navigateToFolder = useCallback(async (folderId: string | null) => {
+    setBrowserLoading(true);
     try {
-      const res = await fetch("/api/admin/media?limit=100&status=READY");
-      if (res.ok) {
-        const data = await res.json();
-        setAllFiles(data.files);
+      if (folderId === null) {
+        const res = await fetch("/api/admin/folders");
+        if (res.ok) {
+          const data = await res.json();
+          setBrowserChildren(data.folders);
+          setBrowserItems([]);
+        }
+      } else {
+        const res = await fetch(`/api/admin/folders/${folderId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setBrowserChildren(data.children);
+          setBrowserItems(data.items);
+        }
       }
     } catch {
       // Ignore
+    } finally {
+      setBrowserLoading(false);
     }
+  }, []);
+
+  const openCreate = () => {
+    setShowCreate(true);
+    setSelected(new Map());
+    setShareName("");
+    setBrowserBreadcrumb([{ id: null, name: "Библиотека" }]);
+    navigateToFolder(null);
   };
 
-  const toggleFile = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
+  const enterFolder = (child: BrowserFolder) => {
+    setBrowserBreadcrumb((prev) => [...prev, { id: child.id, name: child.name }]);
+    navigateToFolder(child.id);
+  };
+
+  const navigateTo = (entry: { id: string | null; name: string }, index: number) => {
+    setBrowserBreadcrumb((prev) => prev.slice(0, index + 1));
+    navigateToFolder(entry.id);
+  };
+
+  const toggleFile = (id: string, name: string) => {
+    setSelected((prev) => {
+      const next = new Map(prev);
       if (next.has(id)) next.delete(id);
-      else next.add(id);
+      else next.set(id, name);
       return next;
     });
   };
 
   const handleCreate = async () => {
-    if (selectedIds.size === 0) return;
+    if (selected.size === 0) return;
     setCreating(true);
     try {
       const res = await fetch("/api/admin/shares", {
@@ -85,7 +128,7 @@ export default function SharesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: shareName.trim() || null,
-          mediaFileIds: Array.from(selectedIds),
+          mediaFileIds: Array.from(selected.keys()),
         }),
       });
       if (res.ok) {
@@ -121,10 +164,12 @@ export default function SharesPage() {
       setCopiedId(share.id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch {
-      // Fallback
       prompt("Копирайте линка:", share.publicUrl);
     }
   };
+
+  const readyItems = browserItems.filter((item) => item.mediaFile.status === "READY");
+  const hasContent = browserChildren.length > 0 || readyItems.length > 0;
 
   return (
     <div className="container p-6 fade-in">
@@ -207,10 +252,10 @@ export default function SharesPage() {
           <div
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: "550px", maxHeight: "80vh", overflowY: "auto" }}
+            style={{ maxWidth: "580px", maxHeight: "90vh", display: "flex", flexDirection: "column", textAlign: "left", padding: "24px" }}
           >
-            <h3 style={{ marginBottom: "16px" }}>Създай линк за споделяне</h3>
-            <p className="text-muted" style={{ marginBottom: "16px", fontSize: "0.85rem" }}>
+            <h3 style={{ marginBottom: "8px", textAlign: "center" }}>Създай линк за споделяне</h3>
+            <p className="text-muted" style={{ marginBottom: "16px", fontSize: "0.85rem", textAlign: "center" }}>
               Линкът изтича след 7 дни
             </p>
             <input
@@ -221,47 +266,127 @@ export default function SharesPage() {
               style={{ marginBottom: "16px" }}
             />
             <p style={{ marginBottom: "8px", fontSize: "0.9rem" }}>
-              Избери видеа за споделяне:
+              Избери видеа:
             </p>
+
+            {/* Folder browser panel */}
             <div
               style={{
-                maxHeight: "300px",
-                overflowY: "auto",
-                marginBottom: "24px",
                 border: "1px solid var(--border-color)",
                 borderRadius: "8px",
+                overflow: "hidden",
+                marginBottom: "12px",
+                flexShrink: 0,
               }}
             >
-              {allFiles.length === 0 ? (
-                <p className="text-muted" style={{ padding: "16px", textAlign: "center" }}>
-                  Няма готови видеа
-                </p>
-              ) : (
-                allFiles.map((file) => (
-                  <label
-                    key={file.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "10px 12px",
-                      cursor: "pointer",
-                      borderBottom: "1px solid var(--border-color)",
-                      background: selectedIds.has(file.id)
-                        ? "rgba(212, 175, 55, 0.08)"
-                        : "transparent",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(file.id)}
-                      onChange={() => toggleFile(file.id)}
-                      style={{ width: "auto", marginRight: "12px" }}
-                    />
-                    <span>{file.displayName}</span>
-                  </label>
-                ))
-              )}
+              {/* Breadcrumb */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  padding: "8px 12px",
+                  background: "var(--bg-secondary, rgba(255,255,255,0.04))",
+                  borderBottom: "1px solid var(--border-color)",
+                  flexWrap: "wrap",
+                  fontSize: "0.82rem",
+                }}
+              >
+                {browserBreadcrumb.map((entry, index) => (
+                  <span key={index} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    {index > 0 && <span className="text-muted">/</span>}
+                    <button
+                      onClick={() => navigateTo(entry, index)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        padding: "0 2px",
+                        cursor: index < browserBreadcrumb.length - 1 ? "pointer" : "default",
+                        color: index < browserBreadcrumb.length - 1 ? "var(--accent-gold-color)" : "inherit",
+                        fontWeight: index === browserBreadcrumb.length - 1 ? 600 : 400,
+                        fontSize: "inherit",
+                      }}
+                    >
+                      {entry.name}
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              {/* Content */}
+              <div style={{ maxHeight: "280px", overflowY: "auto" }}>
+                {browserLoading ? (
+                  <div className="flex justify-center" style={{ padding: "24px" }}>
+                    <div className="loading" />
+                  </div>
+                ) : !hasContent ? (
+                  <p className="text-muted" style={{ padding: "16px", textAlign: "center", fontSize: "0.85rem" }}>
+                    Няма видеа в тази папка
+                  </p>
+                ) : (
+                  <>
+                    {browserChildren.map((child) => (
+                      <div
+                        key={child.id}
+                        onClick={() => enterFolder(child)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "10px 12px",
+                          cursor: "pointer",
+                          borderBottom: "1px solid var(--border-color)",
+                          transition: "background 0.15s",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span>📁</span>
+                          <span style={{ fontSize: "0.9rem" }}>{child.name}</span>
+                          <span className="text-muted" style={{ fontSize: "0.75rem" }}>
+                            {child._count.items} видеа
+                            {child._count.children > 0 ? ` · ${child._count.children} подпапки` : ""}
+                          </span>
+                        </span>
+                        <span className="text-muted" style={{ fontSize: "0.8rem" }}>›</span>
+                      </div>
+                    ))}
+                    {readyItems.map((item) => (
+                      <label
+                        key={item.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          padding: "10px 12px",
+                          cursor: "pointer",
+                          borderBottom: "1px solid var(--border-color)",
+                          background: selected.has(item.mediaFile.id)
+                            ? "rgba(212, 175, 55, 0.08)"
+                            : "transparent",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected.has(item.mediaFile.id)}
+                          onChange={() => toggleFile(item.mediaFile.id, item.mediaFile.displayName)}
+                          style={{ width: "auto", marginRight: "12px" }}
+                        />
+                        <span style={{ fontSize: "0.9rem" }}>{item.mediaFile.displayName}</span>
+                      </label>
+                    ))}
+                  </>
+                )}
+              </div>
             </div>
+
+            {/* Selected summary */}
+            {selected.size > 0 && (
+              <p style={{ marginBottom: "12px", fontSize: "0.85rem", color: "var(--accent-gold-color)" }}>
+                Избрани: {selected.size} видеа
+              </p>
+            )}
+
             <div className="flex justify-center gap-4">
               <button className="btn btn-secondary" onClick={() => setShowCreate(false)} disabled={creating}>
                 Отказ
@@ -269,9 +394,9 @@ export default function SharesPage() {
               <button
                 className="btn btn-primary"
                 onClick={handleCreate}
-                disabled={creating || selectedIds.size === 0}
+                disabled={creating || selected.size === 0}
               >
-                {creating ? "Създаване..." : `Създай (${selectedIds.size})`}
+                {creating ? "Създаване..." : `Създай (${selected.size})`}
               </button>
             </div>
           </div>
