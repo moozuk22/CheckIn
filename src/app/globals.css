@@ -632,3 +632,434 @@ label {
     padding: 16px 12px;
   }
 }
+
+/* Partner Discount Buttons & Modals */
+.sd-discount-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  margin-top: 14px;
+  background: linear-gradient(135deg, rgba(224, 53, 53, 0.18), rgba(20, 0, 0, 0.24));
+  border: 1px solid rgba(224, 53, 53, 0.5);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  text-align: left;
+  box-shadow: 0 0 16px rgba(224, 53, 53, 0.18), inset 0 1px 0 rgba(255, 100, 100, 0.1);
+  animation: sd-btn-pulse 3s ease-in-out infinite;
+}
+
+@keyframes sd-btn-pulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(224, 53, 53, 0.18), inset 0 1px 0 rgba(255, 100, 100, 0.1); }
+  50%       { box-shadow: 0 0 30px rgba(224, 53, 53, 0.45), inset 0 1px 0 rgba(255, 100, 100, 0.1); }
+}
+
+@keyframes idb-btn-pulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(234, 177, 38, 0.1), inset 0 1px 0 rgba(234, 177, 38, 0.05); }
+  50%       { box-shadow: 0 0 32px rgba(234, 177, 38, 0.35), inset 0 1px 0 rgba(234, 177, 38, 0.05); }
+}
+
+@keyframes niko-btn-pulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(0, 84, 166, 0.12), inset 0 1px 0 rgba(0, 84, 166, 0.05); }
+  50%       { box-shadow: 0 0 32px rgba(0, 84, 166, 0.4), inset 0 1px 0 rgba(0, 84, 166, 0.05); }
+}
+
+.sd-discount-btn:hover {
+  background: linear-gradient(135deg, rgba(224, 53, 53, 0.28), rgba(30, 0, 0, 0.3));
+  border-color: rgba(244, 67, 54, 0.8);
+  box-shadow: 0 0 32px rgba(224, 53, 53, 0.42);
+  transform: scale(1.02);
+  animation: none;
+}
+
+.sd-discount-logo-wrap {
+  width: 62px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sd-discount-logo {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  opacity: 1;
+  border-radius: 4px;
+}
+
+.idb-logo-fix {
+  transform: scale(1.6);
+  transition: transform 0.2s ease;
+}
+
+.niko-logo-fix {
+  transform: scale(1.15);
+}
+
+.sd-discount-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: center;
+  margin-left: 4px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 400px) {
+  .sd-discount-label {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+
+.sd-discount-badge {
+  flex-shrink: 0;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 900;
+  padding: 5px 10px;
+  border-radius: 8px;
+  letter-spacing: 0.04em;
+  box-shadow: 0 0 10px rgba(224, 53, 53, 0.45);
+}
+
+/* Modals */
+.sd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.sd-modal, .idb-modal, .niko-modal {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  border-radius: 16px;
+  padding: 24px 20px 28px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+  scrollbar-width: thin;
+}
+
+.sd-modal {
+  background: linear-gradient(160deg, #141010, #191014);
+  border: 1px solid rgba(224, 53, 53, 0.25);
+}
+
+.sd-modal::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 20px; right: 20px; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(224, 53, 53, 0.7) 50%, transparent);
+}
+
+.idb-modal {
+  background: linear-gradient(160deg, #10100a, #1a1505);
+  border: 1px solid rgba(234, 177, 38, 0.25);
+}
+
+.idb-modal::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 20px; right: 20px; height: 2px;
+  background: linear-gradient(90deg, transparent, #eab126 50%, transparent);
+}
+
+.niko-modal {
+  background: linear-gradient(160deg, #0a0f18, #051a30);
+  border: 1px solid rgba(0, 84, 166, 0.3);
+}
+
+.niko-modal::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 20px; right: 20px; height: 2px;
+  background: linear-gradient(90deg, transparent, #0054a6 50%, transparent);
+}
+
+.sd-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sd-modal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.sd-modal-logo {
+  height: 56px;
+  width: auto;
+  object-fit: contain;
+}
+
+.sd-modal-title-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.sd-modal-eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.sd-modal-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.sd-modal-divider {
+  height: 1px;
+  margin: 14px 0;
+}
+
+.sd-highlights {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sd-highlight, .idb-highlight, .niko-highlight {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 12px 8px;
+  border-radius: 10px;
+  border: 1px solid;
+}
+
+.sd-highlight {
+  background: rgba(224, 53, 53, 0.1);
+  border-color: rgba(224, 53, 53, 0.25);
+}
+
+.sd-highlight-value {
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.sd-highlight-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+}
+
+.sd-code-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.sd-code-row--copied {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.sd-code-lbl {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.sd-code {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: #f5b000;
+  font-family: monospace;
+}
+
+.sd-validity {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+}
+
+.sd-qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.sd-qr {
+  width: 180px;
+  height: 180px;
+  border-radius: 12px;
+  border: 3px solid #ffffff;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.sd-qr-hint {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.sd-store-link {
+  color: #60a5fa;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.sd-terms {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.sd-terms-title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+}
+
+.sd-terms-list {
+  margin: 0;
+  padding: 0 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sd-terms-list li {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* IDB Specific */
+.idb-discount-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  margin-top: 10px;
+  background: linear-gradient(135deg, rgba(234, 177, 38, 0.18), rgba(0, 0, 0, 0.4));
+  border: 1px solid rgba(234, 177, 38, 0.5);
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 0 16px rgba(234, 177, 38, 0.1);
+  animation: idb-btn-pulse 3.2s ease-in-out infinite;
+  transition: all 0.2s ease;
+}
+
+.idb-discount-btn:hover {
+  background: linear-gradient(135deg, rgba(234, 177, 38, 0.28), rgba(40, 30, 0, 0.45));
+  border-color: rgba(234, 177, 38, 0.85);
+  box-shadow: 0 0 32px rgba(234, 177, 38, 0.42);
+  transform: scale(1.02);
+  animation: none;
+}
+
+.idb-discount-badge {
+  background: #eab126;
+  color: #000;
+}
+
+.idb-highlight {
+  background: rgba(234, 177, 38, 0.1);
+  border-color: rgba(234, 177, 38, 0.2);
+}
+
+.idb-highlight-value, .idb-code {
+  color: #eab126;
+}
+
+/* Niko Specific */
+.niko-discount-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  margin-top: 10px;
+  background: linear-gradient(135deg, rgba(0, 84, 166, 0.18), rgba(0, 20, 40, 0.24));
+  border: 1px solid rgba(0, 84, 166, 0.5);
+  border-radius: 12px;
+  cursor: pointer;
+  animation: niko-btn-pulse 3.4s ease-in-out infinite;
+  transition: all 0.2s ease;
+}
+
+.niko-discount-btn:hover {
+  background: linear-gradient(135deg, rgba(0, 84, 166, 0.28), rgba(0, 30, 60, 0.35));
+  border-color: rgba(0, 100, 200, 0.8);
+  box-shadow: 0 0 32px rgba(0, 84, 166, 0.45);
+  transform: scale(1.02);
+  animation: none;
+}
+
+.niko-discount-badge {
+  background: #0054a6;
+  color: #fff;
+}
+
+.niko-highlight {
+  background: rgba(0, 84, 166, 0.12);
+  border-color: rgba(0, 84, 166, 0.25);
+}
+
+.niko-highlight-value, .niko-code, .niko-store-link {
+  color: #3b82f6;
+}
