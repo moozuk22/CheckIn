@@ -161,9 +161,6 @@ export default function MediaLibraryPage() {
       </div>
 
       <div className="flex justify-center gap-4 mb-8" style={{ flexWrap: "wrap" }}>
-        <button onClick={() => router.push("/admin/media/upload")} className="btn btn-primary">
-          Качване
-        </button>
         <button onClick={() => router.push("/admin/media/shares")} className="btn btn-primary">
           Споделени линкове
         </button>

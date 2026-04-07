@@ -244,6 +244,9 @@ export default function FolderDetailPage() {
         <button className="btn btn-primary" onClick={() => setShowNewFolder(true)}>
           Нова подпапка
         </button>
+        <button className="btn btn-primary" onClick={() => router.push(`/admin/media/upload?folderId=${id}`)}>
+          Качи видео
+        </button>
         <button className="btn btn-primary" onClick={openAddVideo}>
           Добави видео
         </button>

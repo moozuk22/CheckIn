@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useRef, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -15,11 +15,55 @@ interface UploadItem {
 }
 
 export default function UploadPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container p-6 fade-in">
+          <div className="flex justify-center mt-8">
+            <div className="loading" />
+          </div>
+        </div>
+      }
+    >
+      <UploadPageInner />
+    </Suspense>
+  );
+}
+
+function UploadPageInner() {
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [folderName, setFolderName] = useState<string | null>(null);
+  const [folderLoading, setFolderLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const uploadingRef = useRef(false);
+
+  const folderId = searchParams.get("folderId");
+
+  useEffect(() => {
+    if (!folderId) {
+      router.replace("/admin/media");
+      return;
+    }
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/admin/folders/${folderId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setFolderName(data.folder.name);
+        } else {
+          router.replace("/admin/media");
+        }
+      } catch {
+        router.replace("/admin/media");
+      } finally {
+        setFolderLoading(false);
+      }
+    })();
+  }, [folderId, router]);
 
   const updateUpload = (index: number, update: Partial<UploadItem>) => {
     setUploads((prev) => prev.map((u, i) => (i === index ? { ...u, ...update } : u)));
@@ -86,6 +130,7 @@ export default function UploadPage() {
           fileSize: file.size,
           mimeType: file.type || "video/mp4",
           totalChunks,
+          folderId,
         }),
       });
 
@@ -172,7 +217,7 @@ export default function UploadPage() {
       const res = await fetch("/api/admin/media/upload-finalize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uploadId }),
+        body: JSON.stringify({ uploadId, folderId }),
       });
 
       if (!res.ok) {
@@ -215,6 +260,16 @@ export default function UploadPage() {
     }
   };
 
+  if (folderLoading) {
+    return (
+      <div className="container p-6 fade-in">
+        <div className="flex justify-center mt-8">
+          <div className="loading" />
+        </div>
+      </div>
+    );
+  }
+
   const doneCount = uploads.filter((u) => u.status === "done").length;
   const errorCount = uploads.filter((u) => u.status === "error").length;
   const activeCount = uploads.filter(
@@ -227,11 +282,16 @@ export default function UploadPage() {
         <h1 className="text-gold mb-2" style={{ fontSize: "2rem", fontWeight: "600" }}>
           Качване на видео
         </h1>
+        {folderName && (
+          <p className="text-muted" style={{ fontSize: "0.95rem" }}>
+            в папка: <strong>{folderName}</strong>
+          </p>
+        )}
       </div>
 
       <div className="flex justify-center gap-4 mb-8">
-        <button onClick={() => router.push("/admin/media")} className="btn btn-secondary">
-          Назад към библиотеката
+        <button onClick={() => router.push(`/admin/media/folders/${folderId}`)} className="btn btn-secondary">
+          Назад към папката
         </button>
       </div>
 

@@ -14,6 +14,34 @@ import { probeFile, decideProcessing, enqueueProcessing } from "@/lib/media/proc
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+async function assignToFolder(mediaFileId: string, folderId: string): Promise<string | null> {
+  const folder = await prisma.folder.findUnique({ where: { id: folderId } });
+  if (!folder) return null;
+
+  const lastItem = await prisma.folderItem.findFirst({
+    where: { folderId },
+    orderBy: { sortOrder: "desc" },
+    select: { sortOrder: true },
+  });
+
+  try {
+    const item = await prisma.folderItem.create({
+      data: {
+        folderId,
+        mediaFileId,
+        sortOrder: (lastItem?.sortOrder ?? -1) + 1,
+      },
+    });
+    return item.id;
+  } catch (error) {
+    // Duplicate constraint — already linked, ignore
+    if (error instanceof Error && "code" in error && (error as { code: string }).code === "P2002") {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export async function POST(request: NextRequest) {
   const token = request.cookies.get("admin_session")?.value;
   if (!token || !(await verifyAdminToken(token))) {
@@ -23,6 +51,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const uploadId = String(body.uploadId ?? "").trim();
+    const folderId = body.folderId ? String(body.folderId).trim() : null;
 
     if (!uploadId) {
       return NextResponse.json(
@@ -139,16 +168,23 @@ export async function POST(request: NextRequest) {
           durationSecs: probe.durationSecs,
         },
       });
+      let folderItemId: string | null = null;
+      if (folderId) {
+        folderItemId = await assignToFolder(mediaFile.id, folderId);
+      }
+
       await createAuditLog(
         "UPLOAD_COMPLETED",
         "MediaFile",
         mediaFile.id,
-        { decision: "ready", probe },
+        { decision: "ready", probe, folderId },
         { mediaFileId: mediaFile.id, ipAddress: getClientIp(request) ?? undefined }
       );
       return NextResponse.json({
         mediaFileId: mediaFile.id,
         status: "READY",
+        folderId,
+        folderItemId,
       });
     }
 
@@ -162,6 +198,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    let folderItemId: string | null = null;
+    if (folderId) {
+      folderItemId = await assignToFolder(mediaFile.id, folderId);
+    }
+
     enqueueProcessing({
       mediaFileId: mediaFile.id,
       diskFileName: mediaFile.diskFileName,
@@ -172,6 +213,8 @@ export async function POST(request: NextRequest) {
       mediaFileId: mediaFile.id,
       status: "PROCESSING",
       decision,
+      folderId,
+      folderItemId,
     });
   } catch (error) {
     console.error("Upload finalize error:", error);

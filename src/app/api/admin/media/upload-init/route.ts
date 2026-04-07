@@ -49,6 +49,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const folderId = body.folderId ? String(body.folderId).trim() : null;
+    if (folderId) {
+      const folder = await prisma.folder.findUnique({ where: { id: folderId } });
+      if (!folder) {
+        return NextResponse.json(
+          { error: "Папката не е намерена" },
+          { status: 404 }
+        );
+      }
+    }
+
     // Check disk space: need room for chunks + assembled file + potential transcode
     const requiredSpace = fileSize * 2.5;
     if (!(await hasEnoughDiskSpace(requiredSpace))) {
@@ -82,12 +93,12 @@ export async function POST(request: NextRequest) {
       "UPLOAD_STARTED",
       "MediaFile",
       mediaFile.id,
-      { originalName: fileName, fileSize, mimeType, totalChunks },
+      { originalName: fileName, fileSize, mimeType, totalChunks, folderId },
       { mediaFileId: mediaFile.id, ipAddress: getClientIp(request) ?? undefined }
     );
 
     return NextResponse.json(
-      { uploadId, mediaFileId: mediaFile.id, totalChunks },
+      { uploadId, mediaFileId: mediaFile.id, totalChunks, folderId },
       { status: 201 }
     );
   } catch (error) {
