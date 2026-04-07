@@ -1022,8 +1022,19 @@ label {
   border-color: rgba(234, 177, 38, 0.2);
 }
 
-.idb-highlight-value, .idb-code {
+.idb-highlight-value {
   color: #eab126;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.idb-code {
+  color: #eab126;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  font-family: monospace;
 }
 
 /* Niko Specific */
@@ -1060,6 +1071,22 @@ label {
   border-color: rgba(0, 84, 166, 0.25);
 }
 
-.niko-highlight-value, .niko-code, .niko-store-link {
+.niko-highlight-value {
   color: #3b82f6;
-}
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.niko-code {
+  color: #3b82f6;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  font-family: monospace;
+}
+
+.niko-store-link {
+  color: #3b82f6;
+}
+
