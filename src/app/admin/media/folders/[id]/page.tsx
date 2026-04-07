@@ -595,16 +595,23 @@ export default function FolderDetailPage() {
         <div className="modal-overlay" onClick={() => setPlayingItem(null)}>
           <div
             className="modal-content"
-            style={{ maxWidth: "800px", textAlign: "left", padding: "24px" }}
+            style={{
+              maxWidth: "min(800px, 95vw)",
+              maxHeight: "90vh",
+              textAlign: "left",
+              padding: "16px",
+              display: "flex",
+              flexDirection: "column",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center" style={{ marginBottom: "16px" }}>
-              <strong style={{ fontSize: "1rem" }}>
+            <div className="flex justify-between items-center" style={{ marginBottom: "12px", flexShrink: 0 }}>
+              <strong style={{ fontSize: "0.95rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: "12px" }}>
                 {playingItem.displayName || playingItem.mediaFile.displayName}
               </strong>
               <button
                 className="btn btn-secondary"
-                style={{ padding: "4px 12px", fontSize: "12px" }}
+                style={{ padding: "4px 12px", fontSize: "12px", flexShrink: 0 }}
                 onClick={() => setPlayingItem(null)}
               >
                 Затвори
@@ -614,7 +621,7 @@ export default function FolderDetailPage() {
               key={playingItem.mediaFile.id}
               controls
               autoPlay
-              style={{ width: "100%", borderRadius: "8px", background: "#000", display: "block" }}
+              style={{ width: "100%", borderRadius: "8px", background: "#000", display: "block", maxHeight: "calc(90vh - 70px)", objectFit: "contain" }}
             >
               <source
                 src={`/api/admin/media/${playingItem.mediaFile.id}/stream`}
