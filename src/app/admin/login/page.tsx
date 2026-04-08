@@ -1,9 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function AdminLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container flex items-center justify-center fade-in" style={{ minHeight: "100vh" }}>
+          <div className="member-card" style={{ maxWidth: "420px", width: "100%" }}>
+            <div className="text-center mb-8">
+              <div className="loading mx-auto" />
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <AdminLoginPageInner />
+    </Suspense>
+  );
+}
+
+function AdminLoginPageInner() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
