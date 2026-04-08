@@ -62,6 +62,7 @@ export default function FolderDetailPage() {
   const [editMediaName, setEditMediaName] = useState("");
   const [deletingItem, setDeletingItem] = useState<FolderItemEntry | null>(null);
   const [deletingChild, setDeletingChild] = useState<ChildFolder | null>(null);
+  const [deletingCurrentFolder, setDeletingCurrentFolder] = useState(false);
   const [playingItem, setPlayingItem] = useState<FolderItemEntry | null>(null);
 
   const fetchFolder = useCallback(async () => {
@@ -235,6 +236,24 @@ export default function FolderDetailPage() {
     }
   };
 
+  const handleDeleteCurrentFolder = async () => {
+    if (!folder) return;
+    try {
+      const res = await fetch(`/api/admin/folders/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        const target = folder.parentId ? `/admin/media/folders/${folder.parentId}` : "/admin/media";
+        router.push(target);
+      } else {
+        const data = await res.json();
+        alert(data.error || "Грешка при изтриване на папка.");
+      }
+    } catch {
+      alert("Грешка при изтриване на папка.");
+    } finally {
+      setDeletingCurrentFolder(false);
+    }
+  };
+
   const openAddVideo = async () => {
     setShowAddVideo(true);
     try {
@@ -314,6 +333,9 @@ export default function FolderDetailPage() {
         </button>
         <button className="btn btn-secondary" onClick={handleCopyFolder}>
           Копирай папка
+        </button>
+        <button className="btn btn-error" onClick={() => setDeletingCurrentFolder(true)}>
+          Изтрий папка
         </button>
       </div>
 
@@ -562,6 +584,28 @@ export default function FolderDetailPage() {
                 Отказ
               </button>
               <button className="btn btn-error" onClick={handleRemoveItem}>
+                Изтрий
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletingCurrentFolder && (
+        <div className="modal-overlay" onClick={() => setDeletingCurrentFolder(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginBottom: "16px" }}>Потвърждение</h3>
+            <p style={{ marginBottom: "24px" }}>
+              Изтриване на папка <strong>{folder.name}</strong>?
+            </p>
+            <p className="text-muted" style={{ marginBottom: "24px", fontSize: "0.85rem" }}>
+              Всички подпапки и референции ще бъдат премахнати. Физическите файлове няма да бъдат изтрити.
+            </p>
+            <div className="flex justify-center gap-4">
+              <button className="btn btn-secondary" onClick={() => setDeletingCurrentFolder(false)}>
+                Отказ
+              </button>
+              <button className="btn btn-error" onClick={handleDeleteCurrentFolder}>
                 Изтрий
               </button>
             </div>
