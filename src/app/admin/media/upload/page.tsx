@@ -71,7 +71,7 @@ function UploadPageInner() {
   const addFiles = useCallback(
     (fileList: FileList | File[]) => {
       const newUploads: UploadItem[] = Array.from(fileList)
-        .filter((f) => f.type.startsWith("video/"))
+        .filter((f) => f.type.startsWith("video/") || f.type.startsWith("audio/"))
         .map((file) => ({
           file,
           uploadId: null,
@@ -127,7 +127,7 @@ function UploadPageInner() {
         body: JSON.stringify({
           fileName: file.name,
           fileSize: file.size,
-          mimeType: file.type || "video/mp4",
+          mimeType: file.type || "application/octet-stream",
           totalChunks,
           folderId,
         }),
@@ -280,7 +280,7 @@ function UploadPageInner() {
     <div className="container p-6 fade-in">
       <div className="flex-col flex items-center text-center mb-8">
         <h1 className="text-gold mb-2" style={{ fontSize: "2rem", fontWeight: "600" }}>
-          Качване на видео
+          Качване на медия
         </h1>
         {folderName && (
           <p className="text-muted" style={{ fontSize: "0.95rem" }}>
@@ -316,12 +316,12 @@ function UploadPageInner() {
           Плъзнете файлове тук или натиснете за избор
         </p>
         <p className="text-muted" style={{ fontSize: "0.85rem" }}>
-          Приемат се всички видео формати
+          Приемат се всички видео и аудио формати
         </p>
         <input
           ref={fileInputRef}
           type="file"
-          accept="video/*"
+          accept="video/*,audio/*"
           multiple
           onChange={handleFileSelect}
           style={{ display: "none" }}

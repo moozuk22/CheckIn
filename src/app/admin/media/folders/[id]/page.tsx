@@ -27,6 +27,7 @@ interface FolderItemEntry {
     id: string;
     displayName: string;
     originalName: string;
+    mimeType: string;
     sizeBytes: number;
     status: string;
     isVisible: boolean;
@@ -317,10 +318,10 @@ export default function FolderDetailPage() {
           Нова подпапка
         </button>
         <button className="btn btn-primary" onClick={() => router.push(`/admin/media/upload?folderId=${id}`)}>
-          Качи видео
+          Качи медия
         </button>
         <button className="btn btn-primary" onClick={openAddVideo}>
-          Добави видео
+          Добави медия
         </button>
         <button
           className="btn btn-secondary"
@@ -351,7 +352,7 @@ export default function FolderDetailPage() {
                 >
                   <strong>{child.name}</strong>
                   <span className="text-muted" style={{ fontSize: "0.8rem", marginLeft: "12px" }}>
-                    {child._count.items} видеа · {child._count.children} подпапки
+                    {child._count.items} файла · {child._count.children} подпапки
                   </span>
                 </div>
                 <button
@@ -372,7 +373,7 @@ export default function FolderDetailPage() {
 
       {items.length > 0 ? (
         <div>
-          <h3 style={{ marginBottom: "12px" }}>Видеа</h3>
+          <h3 style={{ marginBottom: "12px" }}>Медия</h3>
           <div className="grid grid-cols-1" style={{ gap: "12px" }}>
             {items.map((item) => (
               <div key={item.id} className="card" style={{ padding: "16px" }}>
@@ -506,13 +507,13 @@ export default function FolderDetailPage() {
       {showAddVideo && (
         <div className="modal-overlay" onClick={() => setShowAddVideo(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "500px" }}>
-            <h3 style={{ marginBottom: "16px" }}>Добави видео</h3>
+            <h3 style={{ marginBottom: "16px" }}>Добави медия</h3>
             <select
               value={selectedFileId}
               onChange={(e) => setSelectedFileId(e.target.value)}
               style={{ marginBottom: "24px" }}
             >
-              <option value="">Избери видео...</option>
+              <option value="">Избери медия...</option>
               {allFiles.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.displayName}
@@ -558,7 +559,7 @@ export default function FolderDetailPage() {
       {editingMedia && (
         <div className="modal-overlay" onClick={() => setEditingMedia(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginBottom: "16px" }}>Преименувай видео</h3>
+            <h3 style={{ marginBottom: "16px" }}>Преименувай медия</h3>
             <input
               type="text"
               value={editMediaName}
@@ -673,17 +674,31 @@ export default function FolderDetailPage() {
                 Затвори
               </button>
             </div>
-            <video
-              key={playingItem.mediaFile.id}
-              controls
-              autoPlay
-              style={{ width: "100%", borderRadius: "8px", background: "#000", display: "block", maxHeight: "calc(90vh - 70px)", objectFit: "contain" }}
-            >
-              <source
-                src={`/api/admin/media/${playingItem.mediaFile.id}/stream`}
-                type="video/mp4"
-              />
-            </video>
+            {playingItem.mediaFile.mimeType.startsWith("audio/") ? (
+              <audio
+                key={playingItem.mediaFile.id}
+                controls
+                autoPlay
+                style={{ width: "100%" }}
+              >
+                <source
+                  src={`/api/admin/media/${playingItem.mediaFile.id}/stream`}
+                  type={playingItem.mediaFile.mimeType}
+                />
+              </audio>
+            ) : (
+              <video
+                key={playingItem.mediaFile.id}
+                controls
+                autoPlay
+                style={{ width: "100%", borderRadius: "8px", background: "#000", display: "block", maxHeight: "calc(90vh - 70px)", objectFit: "contain" }}
+              >
+                <source
+                  src={`/api/admin/media/${playingItem.mediaFile.id}/stream`}
+                  type="video/mp4"
+                />
+              </video>
+            )}
           </div>
         </div>
       )}

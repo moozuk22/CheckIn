@@ -77,6 +77,34 @@ Routes use standard `NextRequest`/`NextResponse`:
 - Errors: `NextResponse.json({ error: "message" }, { status: 4xx|5xx })`
 - Authenticated endpoints: Middleware handles auth; no need to check tokens in route handlers.
 
+### Media System (`/admin/media`)
+
+Video upload and management system for the `MEDIA_MANAGER` role.
+
+**Roles**: Two admin roles exist — `ADMIN` (full access) and `MEDIA_MANAGER` (restricted to `/admin/media` and related APIs only). Role is embedded in the JWT and enforced in middleware.
+
+**Storage layout** (configured via `MEDIA_STORAGE_PATH` env var, default `/var/www/checkin/media`):
+- `files/` — finalized video files
+- `chunks/` — temporary chunk storage during upload
+
+**Chunked upload flow** (supports arbitrarily large files, including multi-GB):
+1. `POST /api/admin/media/upload-init` — creates DB record, checks disk space (`fileSize * 2.5` headroom required)
+2. `POST /api/admin/media/upload-chunk` — receives individual 5MB chunks (FormData)
+3. `GET /api/admin/media/upload-status?uploadId=...` — returns already-received chunks (for resume support)
+4. `POST /api/admin/media/upload-finalize` — assembles chunks, runs ffprobe, triggers transcoding if needed
+
+**Shared constant**: `CHUNK_SIZE` lives in `src/lib/media/chunk-size.ts` (no Node.js imports) so both server (`src/lib/media/config.ts`) and client (`upload/page.tsx`) can import it without issues. Do not move CHUNK_SIZE back into `config.ts` directly — `config.ts` imports `path` which breaks `"use client"` components.
+
+**nginx requirement**: Chunk uploads on slow connections require increased proxy timeouts. The default 60s timeout will kill large chunk transfers. Production nginx must have in the `location /` block:
+```nginx
+proxy_read_timeout 600;
+proxy_send_timeout 600;
+client_body_timeout 600;
+client_max_body_size 100M;
+```
+
+**ffmpeg/ffprobe**: Required on the server for video processing. Paths configured via `FFMPEG_PATH` / `FFPROBE_PATH` env vars.
+
 ### Key Routes Structure
 
 ```
@@ -88,10 +116,17 @@ Routes use standard `NextRequest`/`NextResponse`:
     /members/add      # Add member form
     /notifications    # Send notifications UI
     /questions        # Manage questions
+    /media            # Media manager (MEDIA_MANAGER role)
+    /media/folders/[id]  # Folder contents
+    /media/upload     # Chunked video upload
   /api/admin          # Protected admin endpoints
+  /api/admin/media    # Media upload/management APIs
+  /api/admin/folders  # Folder management APIs
+  /api/admin/shares   # Share link APIs
   /api/members        # Card-based member endpoints
   /api/questions      # Public question endpoints
   /member/[cardCode]  # Member check-in interface
+  /watch/[token]      # Public share-link video player
 ```
 
 ## Environment Variables
@@ -100,10 +135,15 @@ See `.env.example`. Required for local development:
 
 - `DATABASE_URL`: PostgreSQL connection string
 - `ADMIN_PASSWORD`: Simple password for admin login (not production-grade)
+- `MEDIA_MANAGER_PASSWORD`: Password for the restricted media-manager login
 - `ADMIN_SESSION_SECRET`: Long random string for JWT signing
 - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`: Web push keys (generate with web-push CLI)
 - `VAPID_SUBJECT`: Contact email for push notifications
 - `CRON_SECRET`: Security token for any scheduled jobs
+- `MEDIA_STORAGE_PATH`: Root directory for video storage (default `/var/www/checkin/media`)
+- `MEDIA_MIN_FREE_SPACE_GB`: Minimum free disk space required before allowing uploads (default `5`)
+- `FFMPEG_PATH` / `FFPROBE_PATH`: Paths to ffmpeg/ffprobe binaries
+- `SHARE_LINK_BASE_URL`: Base URL for generated share links (e.g. `https://yourdomain.com/watch`)
 
 ## Development Tips
 
