@@ -65,7 +65,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
 
       const contentLength = end - start + 1;
-      const stream = createReadStream(filePath, { start, end, highWaterMark: 64 * 1024 });
+      const stream = createReadStream(filePath, { start, end, highWaterMark: 512 * 1024 });
 
       const webStream = new ReadableStream({
         start(controller) {
@@ -88,12 +88,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           "Accept-Ranges": "bytes",
           "Content-Length": String(contentLength),
           "Content-Type": mediaFile.mimeType,
-          "Cache-Control": "private, no-cache",
+          "Cache-Control": "private, max-age=3600",
+          "Last-Modified": stat.mtime.toUTCString(),
         },
       });
     }
 
-    const stream = createReadStream(filePath, { highWaterMark: 64 * 1024 });
+    const stream = createReadStream(filePath, { highWaterMark: 512 * 1024 });
     const webStream = new ReadableStream({
       start(controller) {
         stream.on("data", (chunk: Buffer | string) => {
@@ -114,7 +115,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         "Accept-Ranges": "bytes",
         "Content-Length": String(fileSize),
         "Content-Type": mediaFile.mimeType,
-        "Cache-Control": "private, no-cache",
+        "Cache-Control": "private, max-age=3600",
+        "Last-Modified": stat.mtime.toUTCString(),
       },
     });
   } catch (error) {
