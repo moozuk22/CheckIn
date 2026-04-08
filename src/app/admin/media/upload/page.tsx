@@ -2,8 +2,7 @@
 
 import { Suspense, useState, useRef, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-
-const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB
+import { CHUNK_SIZE } from "@/lib/media/chunk-size";
 
 interface UploadItem {
   file: File;
@@ -180,8 +179,9 @@ function UploadPageInner() {
       formData.append("chunkIndex", String(chunkIndex));
       formData.append("chunk", chunk);
 
-      let retries = 3;
-      while (retries > 0) {
+      const maxRetries = 5;
+      let attempt = 0;
+      while (attempt < maxRetries) {
         try {
           const res = await fetch("/api/admin/media/upload-chunk", {
             method: "POST",
@@ -194,16 +194,16 @@ function UploadPageInner() {
           }
           break;
         } catch (err) {
-          retries--;
-          if (retries === 0) {
+          attempt++;
+          if (attempt >= maxRetries) {
             updateUpload(index, {
               status: "error",
               error: err instanceof Error ? err.message : "Грешка при качване",
             });
             throw err;
           }
-          // Wait before retry
-          await new Promise((r) => setTimeout(r, 1000));
+          // Exponential backoff: 1s, 2s, 4s, 8s
+          await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
         }
       }
 
