@@ -448,6 +448,16 @@ export default function FolderDetailPage() {
                         Пусни
                       </button>
                     )}
+                    {item.mediaFile.status === "READY" && (
+                      <a
+                        href={`/api/admin/media/${item.mediaFile.id}/stream`}
+                        download={item.mediaFile.originalName}
+                        className="btn btn-secondary"
+                        style={{ padding: "6px 12px", fontSize: "12px" }}
+                      >
+                        Свали
+                      </a>
+                    )}
                     <button
                       className="btn btn-secondary"
                       style={{ padding: "6px 12px", fontSize: "12px" }}
