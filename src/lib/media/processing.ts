@@ -62,7 +62,9 @@ export type ProcessingDecision = "ready" | "remux" | "transcode" | "unsupported"
  */
 export function decideProcessing(probe: ProbeResult): ProcessingDecision {
   if (!probe.videoCodec) {
-    return "unsupported";
+    if (!probe.audioCodec) return "unsupported";
+    const audioOk = BROWSER_AUDIO_CODECS.has(probe.audioCodec.toLowerCase());
+    return audioOk ? "ready" : "transcode";
   }
 
   const videoOk = BROWSER_VIDEO_CODECS.has(probe.videoCodec.toLowerCase());
@@ -91,6 +93,7 @@ interface QueueItem {
   mediaFileId: string;
   diskFileName: string;
   decision: "remux" | "transcode";
+  isAudioOnly: boolean;
 }
 
 const queue: QueueItem[] = [];
@@ -135,23 +138,29 @@ async function processNext(): Promise<void> {
 
   try {
     const inputPath = getFilePath(item.diskFileName);
-    const outputFileName = `${item.mediaFileId}.mp4`;
+    const outputFileName = item.isAudioOnly
+      ? `${item.mediaFileId}.m4a`
+      : `${item.mediaFileId}.mp4`;
     const outputPath = getFilePath(outputFileName);
 
     // Build FFmpeg args
     const args: string[] = ["-i", inputPath, "-y"];
 
-    if (item.decision === "remux") {
-      args.push("-c", "copy");
+    if (item.isAudioOnly) {
+      // Audio-only transcode: AAC output, no video args
+      args.push("-c:a", "aac", "-b:a", "192k");
+    } else if (item.decision === "remux") {
+      args.push("-c", "copy", "-movflags", "+faststart");
     } else {
       // Transcode: H.264 + AAC
       args.push(
         "-c:v", "libx264", "-crf", "23", "-preset", "medium",
-        "-c:a", "aac", "-b:a", "192k"
+        "-c:a", "aac", "-b:a", "192k",
+        "-movflags", "+faststart"
       );
     }
 
-    args.push("-movflags", "+faststart", outputPath);
+    args.push(outputPath);
 
     await runFfmpeg(args);
 
@@ -169,6 +178,7 @@ async function processNext(): Promise<void> {
         diskFileName: outputFileName,
         sizeBytes: BigInt(stat.size),
         errorMessage: null,
+        ...(item.isAudioOnly ? { mimeType: "audio/mp4" } : {}),
       },
     });
 
@@ -176,7 +186,9 @@ async function processNext(): Promise<void> {
     console.error(`FFmpeg processing failed for ${item.mediaFileId}:`, error);
 
     // Clean up partial output
-    const outputFileName = `${item.mediaFileId}.mp4`;
+    const outputFileName = item.isAudioOnly
+      ? `${item.mediaFileId}.m4a`
+      : `${item.mediaFileId}.mp4`;
     if (item.diskFileName !== outputFileName) {
       await deleteFile(outputFileName);
     }
@@ -188,7 +200,7 @@ async function processNext(): Promise<void> {
         errorMessage:
           error instanceof Error
             ? error.message.slice(0, 500)
-            : "Грешка при обработка на видеото",
+            : "Грешка при обработка на файла",
       },
     });
 

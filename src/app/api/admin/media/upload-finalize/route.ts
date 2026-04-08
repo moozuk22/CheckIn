@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
         where: { id: mediaFile.id },
         data: {
           status: "FAILED",
-          errorMessage: "Неподдържан видео формат — няма видео поток",
+          errorMessage: "Неподдържан формат — файлът няма разпознаем медиен поток",
           uploadId: null,
           durationSecs: probe.durationSecs,
         },
@@ -185,6 +185,7 @@ export async function POST(request: NextRequest) {
       mediaFileId: mediaFile.id,
       diskFileName: mediaFile.diskFileName,
       decision,
+      isAudioOnly: !probe.videoCodec && !!probe.audioCodec,
     });
 
     return NextResponse.json({

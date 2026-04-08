@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!mimeType.startsWith("video/")) {
+    if (!mimeType.startsWith("video/") && !mimeType.startsWith("audio/")) {
       return NextResponse.json(
-        { error: "Само видео файлове са позволени" },
+        { error: "Само видео и аудио файлове са позволени" },
         { status: 400 }
       );
     }
