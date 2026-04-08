@@ -12,7 +12,7 @@ export const FFPROBE_PATH = process.env.FFPROBE_PATH || "ffprobe";
 export const SHARE_LINK_BASE_URL =
   process.env.SHARE_LINK_BASE_URL || "http://localhost:3000/watch";
 
-export const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB
+export { CHUNK_SIZE } from "./chunk-size";
 
 export const MIN_FREE_SPACE_BYTES = (() => {
   const gb = parseFloat(process.env.MEDIA_MIN_FREE_SPACE_GB || "5");
