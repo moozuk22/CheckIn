@@ -18,9 +18,10 @@ export async function middleware(request: NextRequest) {
     ) {
       if (adminSession && pathname === "/admin/login") {
         try {
-          await jwtVerify(adminSession, SECRET);
-          // If valid session, redirect away from login to admin dashboard
-          return NextResponse.redirect(new URL("/admin/members", request.url));
+          const { payload } = await jwtVerify(adminSession, SECRET);
+          const role = payload.role as string;
+          const redirectTo = role === "MEDIA_MANAGER" ? "/admin/media" : "/admin/members";
+          return NextResponse.redirect(new URL(redirectTo, request.url));
         } catch {
           // Invalid token, allow access to login
         }
@@ -36,13 +37,30 @@ export async function middleware(request: NextRequest) {
     }
 
     try {
-      await jwtVerify(adminSession, SECRET);
+      const { payload } = await jwtVerify(adminSession, SECRET);
+      const role = payload.role as string;
+
+      if (role === "MEDIA_MANAGER") {
+        const isMediaPage = pathname.startsWith("/admin/media");
+        const isMediaApi =
+          pathname.startsWith("/api/admin/media") ||
+          pathname.startsWith("/api/admin/folders") ||
+          pathname.startsWith("/api/admin/shares");
+
+        if (!isMediaPage && !isMediaApi) {
+          if (pathname.startsWith("/api/")) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+          }
+          return NextResponse.redirect(new URL("/admin/media", request.url));
+        }
+      }
+
       return NextResponse.next();
     } catch {
       const response = pathname.startsWith("/api/")
         ? NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         : NextResponse.redirect(new URL("/admin/login", request.url));
-      
+
       response.cookies.delete("admin_session");
       return response;
     }

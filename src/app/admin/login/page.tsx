@@ -24,7 +24,8 @@ export default function AdminLoginPage() {
       });
 
       if (response.ok) {
-        router.push("/admin/members");
+        const data = await response.json();
+        router.push(data.role === "MEDIA_MANAGER" ? "/admin/media" : "/admin/members");
       } else {
         const data = await response.json();
         setError(data.error || "Login failed");

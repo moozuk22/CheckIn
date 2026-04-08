@@ -10,10 +10,12 @@ function getAdminSecret() {
   return new TextEncoder().encode(secret);
 }
 
-export async function createAdminToken() {
+export type AdminRole = "ADMIN" | "MEDIA_MANAGER";
+
+export async function createAdminToken(role: AdminRole = "ADMIN") {
   const secret = getAdminSecret();
 
-  return await new SignJWT({ role: "ADMIN" })
+  return await new SignJWT({ role })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
       .setExpirationTime("365d")
