@@ -50,6 +50,7 @@ export default function FolderDetailPage() {
   const [children, setChildren] = useState<ChildFolder[]>([]);
   const [items, setItems] = useState<FolderItemEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdminRole, setIsAdminRole] = useState(false);
 
   // Modals
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -86,6 +87,27 @@ export default function FolderDetailPage() {
   useEffect(() => {
     fetchFolder();
   }, [fetchFolder]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/check-session", { cache: "no-store" });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled) {
+          setIsAdminRole(data.role === "ADMIN");
+        }
+      } catch {
+        // Ignore
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleCreateSubfolder = async () => {
     if (!newFolderName.trim()) return;
@@ -335,9 +357,11 @@ export default function FolderDetailPage() {
         <button className="btn btn-secondary" onClick={handleCopyFolder}>
           Копирай папка
         </button>
-        <button className="btn btn-error" onClick={() => setDeletingCurrentFolder(true)}>
-          Изтрий папка
-        </button>
+        {isAdminRole && (
+          <button className="btn btn-error" onClick={() => setDeletingCurrentFolder(true)}>
+            Изтрий папка
+          </button>
+        )}
       </div>
 
       {children.length > 0 && (
@@ -355,16 +379,18 @@ export default function FolderDetailPage() {
                     {child._count.items} файла · {child._count.children} подпапки
                   </span>
                 </div>
-                <button
-                  className="btn btn-error"
-                  style={{ padding: "4px 10px", fontSize: "11px" }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeletingChild(child);
-                  }}
-                >
-                  Изтрий
-                </button>
+                {isAdminRole && (
+                  <button
+                    className="btn btn-error"
+                    style={{ padding: "4px 10px", fontSize: "11px" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingChild(child);
+                    }}
+                  >
+                    Изтрий
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -468,13 +494,15 @@ export default function FolderDetailPage() {
                     >
                       Преименувай
                     </button>
-                    <button
-                      className="btn btn-error"
-                      style={{ padding: "6px 12px", fontSize: "12px" }}
-                      onClick={() => setDeletingItem(item)}
-                    >
-                      Изтрий
-                    </button>
+                    {isAdminRole && (
+                      <button
+                        className="btn btn-error"
+                        style={{ padding: "6px 12px", fontSize: "12px" }}
+                        onClick={() => setDeletingItem(item)}
+                      >
+                        Изтрий
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -606,9 +634,11 @@ export default function FolderDetailPage() {
               <button className="btn btn-secondary" onClick={() => setDeletingItem(null)}>
                 Отказ
               </button>
-              <button className="btn btn-error" onClick={handleRemoveItem}>
-                Изтрий
-              </button>
+              {isAdminRole && (
+                <button className="btn btn-error" onClick={handleRemoveItem}>
+                  Изтрий
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -628,9 +658,11 @@ export default function FolderDetailPage() {
               <button className="btn btn-secondary" onClick={() => setDeletingCurrentFolder(false)}>
                 Отказ
               </button>
-              <button className="btn btn-error" onClick={handleDeleteCurrentFolder}>
-                Изтрий
-              </button>
+              {isAdminRole && (
+                <button className="btn btn-error" onClick={handleDeleteCurrentFolder}>
+                  Изтрий
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -650,9 +682,11 @@ export default function FolderDetailPage() {
               <button className="btn btn-secondary" onClick={() => setDeletingChild(null)}>
                 Отказ
               </button>
-              <button className="btn btn-error" onClick={handleDeleteChild}>
-                Изтрий
-              </button>
+              {isAdminRole && (
+                <button className="btn btn-error" onClick={handleDeleteChild}>
+                  Изтрий
+                </button>
+              )}
             </div>
           </div>
         </div>

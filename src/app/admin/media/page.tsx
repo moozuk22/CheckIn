@@ -168,16 +168,18 @@ export default function MediaLibraryPage() {
                     {folder._count.items} видеа · {folder._count.children} подпапки
                   </span>
                 </div>
-                <button
-                  className="btn btn-error"
-                  style={{ padding: "4px 10px", fontSize: "11px" }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeletingFolder(folder);
-                  }}
-                >
-                  Изтрий
-                </button>
+                {isAdminRole && (
+                  <button
+                    className="btn btn-error"
+                    style={{ padding: "4px 10px", fontSize: "11px" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingFolder(folder);
+                    }}
+                  >
+                    Изтрий
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -223,9 +225,11 @@ export default function MediaLibraryPage() {
               <button className="btn btn-secondary" onClick={() => setDeletingFolder(null)}>
                 Отказ
               </button>
-              <button className="btn btn-error" onClick={handleDeleteFolder}>
-                Изтрий
-              </button>
+              {isAdminRole && (
+                <button className="btn btn-error" onClick={handleDeleteFolder}>
+                  Изтрий
+                </button>
+              )}
             </div>
           </div>
         </div>
