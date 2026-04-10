@@ -69,6 +69,8 @@ export default function FolderDetailPage() {
   const [deletingCurrentFolder, setDeletingCurrentFolder] = useState(false);
   const [playingItem, setPlayingItem] = useState<FolderItemEntry | null>(null);
   const [viewingImage, setViewingImage] = useState<FolderItemEntry | null>(null);
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [bulkDownloading, setBulkDownloading] = useState(false);
 
   const fetchFolder = useCallback(async () => {
     setLoading(true);
@@ -101,6 +103,19 @@ export default function FolderDetailPage() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    setSelectedItemIds((prev) => {
+      if (prev.size === 0) return prev;
+      const validIds = new Set(
+        items
+          .filter((entry) => entry.mediaFile.status === "READY")
+          .map((entry) => entry.id)
+      );
+      const next = new Set(Array.from(prev).filter((entryId) => validIds.has(entryId)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [items]);
 
   const handleCreateSubfolder = async () => {
     if (!newFolderName.trim()) return;
@@ -222,6 +237,51 @@ export default function FolderDetailPage() {
       const res = await fetch("/api/admin/media?limit=100&status=READY");
       if (res.ok) { const data = await res.json(); setAllFiles(data.files); }
     } catch {}
+  };
+
+  const readyItems = items.filter((item) => item.mediaFile.status === "READY");
+  const selectedReadyItems = readyItems.filter((item) => selectedItemIds.has(item.id));
+  const allReadyItemsSelected =
+    readyItems.length > 0 && selectedReadyItems.length === readyItems.length;
+
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  };
+
+  const toggleSelectAllReady = () => {
+    if (allReadyItemsSelected) {
+      setSelectedItemIds(new Set());
+      return;
+    }
+    setSelectedItemIds(new Set(readyItems.map((item) => item.id)));
+  };
+
+  const triggerFileDownload = (mediaFileId: string, fileName: string) => {
+    const link = document.createElement("a");
+    link.href = `/api/admin/media/${mediaFileId}/stream`;
+    link.download = fileName;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadSelected = async () => {
+    if (selectedReadyItems.length === 0 || bulkDownloading) return;
+    setBulkDownloading(true);
+    try {
+      for (const item of selectedReadyItems) {
+        triggerFileDownload(item.mediaFile.id, item.mediaFile.originalName || item.mediaFile.displayName);
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 150));
+      }
+    } finally {
+      setBulkDownloading(false);
+    }
   };
 
   const getMediaIcon = (item: FolderItemEntry) => {
@@ -374,11 +434,45 @@ export default function FolderDetailPage() {
                 <span className="fd-section-title">Медия</span>
                 <span className="fd-section-count">{items.length}</span>
                 <div className="fd-section-line" />
+                <div className="fd-media-bulk-actions">
+                  <button
+                    className="fd-btn fd-btn-ghost fd-btn-sm"
+                    onClick={toggleSelectAllReady}
+                    disabled={readyItems.length === 0 || bulkDownloading}
+                  >
+                    {allReadyItemsSelected ? "Размаркирай всички" : "Маркирай всички"}
+                  </button>
+                  <button
+                    className="fd-btn fd-btn-secondary fd-btn-sm"
+                    onClick={handleDownloadSelected}
+                    disabled={selectedReadyItems.length === 0 || bulkDownloading}
+                  >
+                    {bulkDownloading
+                      ? "Сваляне..."
+                      : `Свали избрани (${selectedReadyItems.length})`}
+                  </button>
+                </div>
               </div>
               <div className="fd-media-list">
                 {items.map((item) => (
-                  <div key={item.id} className="fd-media-item">
+                  <div
+                    key={item.id}
+                    className={`fd-media-item ${selectedItemIds.has(item.id) ? "fd-media-item-selected" : ""}`}
+                  >
                     <div className="fd-media-row">
+                      <div className="fd-media-select">
+                        {item.mediaFile.status === "READY" ? (
+                          <input
+                            type="checkbox"
+                            className="fd-media-checkbox"
+                            checked={selectedItemIds.has(item.id)}
+                            onChange={() => toggleItemSelection(item.id)}
+                            aria-label={`Select ${item.displayName || item.mediaFile.displayName}`}
+                          />
+                        ) : (
+                          <span className="fd-media-select-placeholder" aria-hidden="true" />
+                        )}
+                      </div>
                       <div className="fd-media-icon">
                         {getMediaIcon(item)}
                       </div>

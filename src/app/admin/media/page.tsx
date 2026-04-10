@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import "./page.css";
 
 interface Folder {
   id: string;
@@ -10,12 +11,26 @@ interface Folder {
   _count: { children: number; items: number };
 }
 
+interface FolderDownloadResponse {
+  children: Array<{ id: string }>;
+  items: Array<{
+    mediaFile: {
+      id: string;
+      displayName: string;
+      originalName: string;
+      status: string;
+    };
+  }>;
+}
+
 export default function MediaLibraryPage() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [deletingFolder, setDeletingFolder] = useState<Folder | null>(null);
   const [isAdminRole, setIsAdminRole] = useState(false);
+  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
+  const [downloadingSelection, setDownloadingSelection] = useState(false);
   const [memberReturnCardCode] = useState<string | null>(() =>
     typeof window !== "undefined" ? sessionStorage.getItem("admin_return_member_card_code") : null
   );
@@ -53,6 +68,15 @@ export default function MediaLibraryPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    setSelectedFolderIds((prev) => {
+      if (prev.size === 0) return prev;
+      const folderIds = new Set(folders.map((folder) => folder.id));
+      const next = new Set(Array.from(prev).filter((id) => folderIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [folders]);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +135,87 @@ export default function MediaLibraryPage() {
     }
   };
 
+  const toggleFolderSelection = (folderId: string) => {
+    setSelectedFolderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  };
+
+  const toggleSelectAllFolders = () => {
+    if (folders.length === 0) return;
+    if (selectedFolderIds.size === folders.length) {
+      setSelectedFolderIds(new Set());
+      return;
+    }
+    setSelectedFolderIds(new Set(folders.map((folder) => folder.id)));
+  };
+
+  const triggerFileDownload = (mediaFileId: string, fileName: string) => {
+    const link = document.createElement("a");
+    link.href = `/api/admin/media/${mediaFileId}/stream`;
+    link.download = fileName;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const collectReadyFiles = async (
+    folderId: string,
+    visited: Set<string>,
+    downloads: Map<string, string>
+  ): Promise<void> => {
+    if (visited.has(folderId)) return;
+    visited.add(folderId);
+
+    const res = await fetch(`/api/admin/folders/${folderId}`);
+    if (!res.ok) return;
+    const data = (await res.json()) as FolderDownloadResponse;
+
+    for (const item of data.items ?? []) {
+      if (item.mediaFile.status === "READY") {
+        downloads.set(
+          item.mediaFile.id,
+          item.mediaFile.originalName || item.mediaFile.displayName
+        );
+      }
+    }
+
+    for (const child of data.children ?? []) {
+      await collectReadyFiles(child.id, visited, downloads);
+    }
+  };
+
+  const handleDownloadSelectedFolders = async () => {
+    if (selectedFolderIds.size === 0 || downloadingSelection) return;
+    setDownloadingSelection(true);
+    try {
+      const visited = new Set<string>();
+      const downloads = new Map<string, string>();
+
+      for (const folderId of selectedFolderIds) {
+        await collectReadyFiles(folderId, visited, downloads);
+      }
+
+      if (downloads.size === 0) {
+        alert("Няма готови файлове за сваляне в избраните папки.");
+        return;
+      }
+
+      for (const [mediaFileId, fileName] of downloads) {
+        triggerFileDownload(mediaFileId, fileName);
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 150));
+      }
+    } catch {
+      alert("Грешка при групово сваляне.");
+    } finally {
+      setDownloadingSelection(false);
+    }
+  };
+
   const handleBack = () => {
     if (isAdminRole || !memberReturnCardCode) {
       router.push("/admin/members");
@@ -119,15 +224,17 @@ export default function MediaLibraryPage() {
     router.push(`/member/${memberReturnCardCode}`);
   };
 
+  const allFoldersSelected = folders.length > 0 && selectedFolderIds.size === folders.length;
+
   return (
-    <div className="container p-6 fade-in">
-      <div className="flex-col flex items-center text-center mb-8">
-        <h1 className="text-gold mb-2" style={{ fontSize: "2rem", fontWeight: "600" }}>
+    <div className="container p-6 fade-in ml-page">
+      <div className="flex-col flex items-center text-center mb-8 ml-title-wrap">
+        <h1 className="text-gold mb-2 ml-title">
           Медия библиотека
         </h1>
       </div>
 
-      <div className="flex justify-center gap-4 mb-8" style={{ flexWrap: "wrap" }}>
+      <div className="flex justify-center gap-4 mb-8 ml-nav-actions">
         <button onClick={() => router.push("/admin/media/shares")} className="btn btn-primary">
           Споделени линкове
         </button>
@@ -139,39 +246,66 @@ export default function MediaLibraryPage() {
         </button>)}
       </div>
 
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 style={{ fontSize: "1.3rem", marginBottom: 0 }}>Папки</h2>
-          <button
-            className="btn btn-secondary"
-            style={{ padding: "6px 14px", fontSize: "12px" }}
-            onClick={() => setShowNewFolder(true)}
-          >
-            Нова папка
-          </button>
+      <div className="mb-8 ml-folders-section">
+        <div className="flex justify-between items-center mb-4 ml-folders-header">
+          <h2 className="ml-folders-title">Папки</h2>
+          <div className="flex gap-2 ml-bulk-toolbar">
+            <button
+              className="btn btn-secondary ml-btn-sm"
+              onClick={toggleSelectAllFolders}
+              disabled={folders.length === 0 || downloadingSelection}
+            >
+              {allFoldersSelected ? "Размаркирай всички" : "Маркирай всички"}
+            </button>
+            <button
+              className="btn btn-primary ml-btn-sm"
+              onClick={handleDownloadSelectedFolders}
+              disabled={selectedFolderIds.size === 0 || downloadingSelection}
+            >
+              {downloadingSelection ? "Сваляне..." : `Свали избрани (${selectedFolderIds.size})`}
+            </button>
+            <button
+              className="btn btn-secondary ml-btn-sm"
+              onClick={() => setShowNewFolder(true)}
+            >
+              Нова папка
+            </button>
+          </div>
         </div>
         {folders.length === 0 ? (
-          <p className="text-muted" style={{ fontSize: "0.85rem" }}>
+          <p className="text-muted ml-empty">
             Няма създадени папки
           </p>
         ) : (
-          <div className="grid grid-cols-1" style={{ gap: "8px" }}>
+          <div className="grid grid-cols-1 ml-folder-list">
             {folders.map((folder) => (
               <div
                 key={folder.id}
-                className="folder-card"
+                className={`folder-card ml-folder-card ${selectedFolderIds.has(folder.id) ? "ml-folder-card-selected" : ""}`}
                 onClick={() => router.push(`/admin/media/folders/${folder.id}`)}
               >
-                <div style={{ flex: 1 }}>
+                <label
+                  className="ml-folder-select"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    className="ml-folder-checkbox"
+                    checked={selectedFolderIds.has(folder.id)}
+                    onChange={() => toggleFolderSelection(folder.id)}
+                    aria-label={`Select folder ${folder.name}`}
+                    disabled={downloadingSelection}
+                  />
+                </label>
+                <div className="ml-folder-content">
                   <strong>{folder.name}</strong>
-                  <span className="text-muted" style={{ fontSize: "0.8rem", marginLeft: "12px" }}>
+                  <span className="text-muted ml-folder-meta">
                     {folder._count.items} видеа · {folder._count.children} подпапки
                   </span>
                 </div>
                 {isAdminRole && (
                   <button
-                    className="btn btn-error"
-                    style={{ padding: "4px 10px", fontSize: "11px" }}
+                    className="btn btn-error ml-delete-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       setDeletingFolder(folder);

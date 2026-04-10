@@ -1,0 +1,165 @@
+.ml-page {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.ml-title {
+  font-size: clamp(1.7rem, 3.2vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.ml-nav-actions {
+  flex-wrap: wrap;
+}
+
+.ml-folders-section {
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.04), rgba(255, 255, 255, 0));
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.ml-folders-header {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ml-folders-title {
+  font-size: 1.25rem;
+  margin: 0;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.ml-bulk-toolbar {
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.ml-btn-sm {
+  padding: 7px 14px;
+  font-size: 12px;
+  min-height: 34px;
+}
+
+.ml-empty {
+  font-size: 0.86rem;
+  padding: 4px 2px 6px;
+}
+
+.ml-folder-list {
+  gap: 10px;
+}
+
+.ml-folder-card {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(212, 175, 55, 0.14);
+}
+
+.ml-folder-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(180deg, #d4af37, #8f7424);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.ml-folder-card:hover {
+  background: rgba(212, 175, 55, 0.06);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+}
+
+.ml-folder-card-selected {
+  border-color: var(--accent-gold-color);
+  background: rgba(212, 175, 55, 0.1);
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.2), 0 10px 24px rgba(0, 0, 0, 0.24);
+}
+
+.ml-folder-card-selected::before {
+  opacity: 1;
+}
+
+.ml-folder-select {
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
+}
+
+.ml-folder-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent-gold-color);
+}
+
+.ml-folder-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ml-folder-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ml-folder-content > strong {
+  font-weight: 600;
+  max-width: min(470px, 100%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ml-folder-meta {
+  font-size: 0.8rem;
+  margin-left: 0;
+}
+
+.ml-delete-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+@media (max-width: 860px) {
+  .ml-bulk-toolbar {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .ml-folders-section {
+    padding: 14px 12px;
+  }
+
+  .ml-bulk-toolbar .btn {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  .ml-bulk-toolbar .btn:last-child {
+    flex-basis: 100%;
+  }
+
+  .ml-folder-content {
+    gap: 6px;
+  }
+
+  .ml-folder-content > strong {
+    max-width: 100%;
+  }
+
+  .ml-delete-btn {
+    margin-left: auto;
+  }
+}
