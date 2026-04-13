@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import "./page.css";
 
@@ -60,6 +60,12 @@ export default function FolderDetailPage() {
   const [showAddVideo, setShowAddVideo] = useState(false);
   const [allFiles, setAllFiles] = useState<MediaFile[]>([]);
   const [selectedFileId, setSelectedFileId] = useState("");
+  const [addMediaSearch, setAddMediaSearch] = useState("");
+  const [loadingAddMedia, setLoadingAddMedia] = useState(false);
+  const [loadingMoreAddMedia, setLoadingMoreAddMedia] = useState(false);
+  const [addMediaPage, setAddMediaPage] = useState(1);
+  const [addMediaHasMore, setAddMediaHasMore] = useState(false);
+  const [addMediaTotal, setAddMediaTotal] = useState(0);
   const [showRename, setShowRename] = useState(false);
   const [renameName, setRenameName] = useState("");
   const [editingMedia, setEditingMedia] = useState<FolderItemEntry | null>(null);
@@ -71,6 +77,7 @@ export default function FolderDetailPage() {
   const [viewingImage, setViewingImage] = useState<FolderItemEntry | null>(null);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [bulkDownloading, setBulkDownloading] = useState(false);
+  const addMediaRequestIdRef = useRef(0);
 
   const fetchFolder = useCallback(async () => {
     setLoading(true);
@@ -231,13 +238,96 @@ export default function FolderDetailPage() {
     finally { setDeletingCurrentFolder(false); }
   };
 
-  const openAddVideo = async () => {
-    setShowAddVideo(true);
+  const fetchAddableMedia = useCallback(async (search: string, page: number, append: boolean) => {
+    if (append) setLoadingMoreAddMedia(true);
+    else setLoadingAddMedia(true);
+
+    const requestId = ++addMediaRequestIdRef.current;
+    const pageSize = 50;
+
     try {
-      const res = await fetch("/api/admin/media?limit=100&status=READY");
-      if (res.ok) { const data = await res.json(); setAllFiles(data.files); }
-    } catch {}
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(pageSize),
+        status: "READY",
+        excludeFolderId: id,
+      });
+      const trimmed = search.trim();
+      if (trimmed) {
+        params.set("search", trimmed);
+      }
+
+      const res = await fetch(`/api/admin/media?${params.toString()}`);
+      if (!res.ok) {
+        if (requestId !== addMediaRequestIdRef.current) return;
+        if (!append) {
+          setAllFiles([]);
+          setAddMediaTotal(0);
+          setAddMediaHasMore(false);
+        }
+        return;
+      }
+
+      const data = await res.json();
+      if (requestId !== addMediaRequestIdRef.current) return;
+
+      const batch = Array.isArray(data.files) ? (data.files as MediaFile[]) : [];
+      const total = typeof data.total === "number" ? data.total : batch.length;
+
+      setAllFiles((prev) => (append ? [...prev, ...batch] : batch));
+      setAddMediaTotal(total);
+      setAddMediaPage(page);
+      setAddMediaHasMore(page * pageSize < total);
+    } catch {
+      if (requestId !== addMediaRequestIdRef.current) return;
+      if (!append) {
+        setAllFiles([]);
+        setAddMediaTotal(0);
+        setAddMediaHasMore(false);
+      }
+    } finally {
+      if (requestId !== addMediaRequestIdRef.current) return;
+      if (append) setLoadingMoreAddMedia(false);
+      else setLoadingAddMedia(false);
+    }
+  }, [id]);
+
+  const openAddVideo = () => {
+    setShowAddVideo(true);
+    setSelectedFileId("");
+    setAddMediaSearch("");
+    setAllFiles([]);
+    setAddMediaPage(1);
+    setAddMediaHasMore(false);
+    setAddMediaTotal(0);
+    setLoadingAddMedia(false);
+    setLoadingMoreAddMedia(false);
+    addMediaRequestIdRef.current += 1;
   };
+
+  const handleLoadMoreAddMedia = () => {
+    if (!showAddVideo || loadingAddMedia || loadingMoreAddMedia || !addMediaHasMore) return;
+    void fetchAddableMedia(addMediaSearch, addMediaPage + 1, true);
+  };
+
+  useEffect(() => {
+    if (!showAddVideo) return;
+    const timer = window.setTimeout(() => {
+      void fetchAddableMedia(addMediaSearch, 1, false);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [showAddVideo, addMediaSearch, fetchAddableMedia]);
+
+  useEffect(() => {
+    if (showAddVideo) return;
+    addMediaRequestIdRef.current += 1;
+    setLoadingAddMedia(false);
+    setLoadingMoreAddMedia(false);
+  }, [showAddVideo]);
+
+  useEffect(() => {
+    setSelectedFileId((prev) => (allFiles.some((f) => f.id === prev) ? prev : ""));
+  }, [allFiles]);
 
   const readyItems = items.filter((item) => item.mediaFile.status === "READY");
   const selectedReadyItems = readyItems.filter((item) => selectedItemIds.has(item.id));
@@ -581,16 +671,51 @@ export default function FolderDetailPage() {
         <div className="fd-overlay" onClick={() => setShowAddVideo(false)}>
           <div className="fd-modal fd-modal-wide" onClick={(e) => e.stopPropagation()}>
             <h3 className="fd-modal-title">Добави медия</h3>
+            <input
+              type="text"
+              className="fd-input"
+              value={addMediaSearch}
+              onChange={(e) => setAddMediaSearch(e.target.value)}
+              placeholder="Търси по име..."
+              style={{ marginBottom: "10px" }}
+            />
+            {loadingAddMedia && (
+              <p className="text-muted" style={{ marginBottom: "10px" }}>
+                Зареждане...
+              </p>
+            )}
             <select
               className="fd-select"
               value={selectedFileId}
               onChange={(e) => setSelectedFileId(e.target.value)}
+              disabled={loadingAddMedia}
             >
               <option value="">Избери медия...</option>
               {allFiles.map((f) => (
                 <option key={f.id} value={f.id}>{f.displayName}</option>
               ))}
             </select>
+            {!loadingAddMedia && allFiles.length > 0 && (
+              <p className="text-muted" style={{ marginTop: "10px", marginBottom: "0" }}>
+                Показани {allFiles.length} от {addMediaTotal} файла
+              </p>
+            )}
+            {addMediaHasMore && (
+              <div style={{ marginTop: "10px", display: "flex", justifyContent: "flex-start" }}>
+                <button
+                  className="fd-btn fd-btn-secondary fd-btn-sm"
+                  onClick={handleLoadMoreAddMedia}
+                  disabled={loadingMoreAddMedia || loadingAddMedia}
+                >
+                  {loadingMoreAddMedia ? "Зареждане..." : "Зареди още"}
+                </button>
+              </div>
+            )}
+            {!loadingAddMedia && allFiles.length === 0 && (
+              <p className="text-muted" style={{ marginTop: "10px", marginBottom: "0" }}>
+                Няма намерени READY файлове за текущата папка.
+              </p>
+            )}
             <div className="fd-modal-actions">
               <button className="fd-btn fd-btn-ghost" onClick={() => setShowAddVideo(false)}>Отказ</button>
               <button className="fd-btn fd-btn-primary" onClick={handleAddVideo} disabled={!selectedFileId}>Добави</button>

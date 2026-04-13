@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, Number(params.get("limit")) || 20));
     const status = params.get("status");
     const search = params.get("search")?.trim();
+    const excludeFolderId = params.get("excludeFolderId")?.trim();
 
     const where: Prisma.MediaFileWhereInput = {};
 
@@ -30,6 +31,14 @@ export async function GET(request: NextRequest) {
         { displayName: { contains: search, mode: "insensitive" } },
         { originalName: { contains: search, mode: "insensitive" } },
       ];
+    }
+
+    if (excludeFolderId) {
+      where.folderItems = {
+        none: {
+          folderId: excludeFolderId,
+        },
+      };
     }
 
     const [files, total] = await Promise.all([
