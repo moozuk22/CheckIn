@@ -41,13 +41,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    if (share.expiresAt < new Date()) {
-      return NextResponse.json(
-        { error: "Този линк е изтекъл" },
-        { status: 410 }
-      );
-    }
-
     // Update access stats
     await prisma.shareLink.update({
       where: { id: share.id },
@@ -77,7 +70,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({
       name: share.name,
-      expiresAt: share.expiresAt,
       videos,
     });
   } catch (error) {

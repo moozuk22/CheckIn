@@ -6,6 +6,7 @@ import { SHARE_LINK_BASE_URL } from "@/lib/media/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const NEVER_EXPIRES_AT = new Date("9999-12-31T23:59:59.999Z");
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get("admin_session")?.value;
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
         ...s,
         videoCount: s._count.items,
         publicUrl: `${SHARE_LINK_BASE_URL}/${s.token}`,
-        isExpired: s.expiresAt < new Date(),
+        isExpired: false,
         _count: undefined,
       })),
     });
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     const shareToken = randomBytes(32).toString("base64url");
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const expiresAt = NEVER_EXPIRES_AT;
 
     const shareLink = await prisma.shareLink.create({
       data: {

@@ -49,7 +49,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({
       ...share,
       publicUrl: `${SHARE_LINK_BASE_URL}/${share.token}`,
-      isExpired: share.expiresAt < new Date(),
+      isExpired: false,
       items: share.items.map((item) => ({
         ...item,
         mediaFile: {
