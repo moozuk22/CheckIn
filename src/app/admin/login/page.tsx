@@ -72,7 +72,7 @@ function AdminLoginPageInner() {
       <div className="member-card" style={{ maxWidth: '420px', width: '100%' }}>
         <div className="text-center mb-8">
           <img
-            src="/logo.png"
+          src="/logo.png"
             alt="Logo"
             className="mb-5 mx-auto"
             style={{ width: '56px', height: '56px', objectFit: 'contain' }}

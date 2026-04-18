@@ -65,6 +65,11 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
   const [trainingDetailsDate, setTrainingDetailsDate] = useState<string | null>(null)
 
   const [trainingModalOpen, setTrainingModalOpen] = useState(false)
+  const [nextTrainingDate, setNextTrainingDate] = useState<string | null>(null)
+  const [nextTrainingTime, setNextTrainingTime] = useState<string | null>(null)
+  const [nextTrainingCountdown, setNextTrainingCountdown] = useState<{
+    days: number; hours: number; minutes: number; seconds: number
+  } | null>(null)
 
   // Partner Modal States
   const [sportDepotModalOpen, setSportDepotModalOpen] = useState(false)
@@ -86,6 +91,21 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
   const TRAINING_WEEKDAY_SHORT_BG = ['Пон', 'Вт', 'Ср', 'Чет', 'Пет', 'Съб', 'Нед']
   const MONTH_NAMES_BG_FULL = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември']
   const todayDateKey = new Date().toISOString().slice(0, 10)
+
+  function formatIsoDateForBgDisplay(isoDate: string): string {
+    const [y, m, d] = isoDate.split('-')
+    return `${d}.${m}.${y}`
+  }
+
+  function getSofiaTargetDate(isoDate: string, trainingTime: string | null): Date {
+    const now = new Date()
+    const sofiaLocalStr = now.toLocaleString('sv-SE', { timeZone: 'Europe/Sofia' })
+    const sofiaLocalAsUTC = new Date(sofiaLocalStr.replace(' ', 'T') + 'Z').getTime()
+    const offset = now.getTime() - sofiaLocalAsUTC
+    const time = trainingTime ?? '23:59:59'
+    const targetAsUTC = new Date(`${isoDate}T${time.length === 5 ? time + ':00' : time}Z`).getTime()
+    return new Date(targetAsUTC + offset)
+  }
 
   function buildTrainingCalendarMonths(dates: TrainingDate[]) {
     const monthMap = new Map<string, { year: number; month: number }>()
@@ -269,6 +289,39 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
       window.removeEventListener('focus', onFocus)
     }
   }, [isAdmin])
+
+  useEffect(() => {
+    if (isAdmin || trainingDates.length === 0) {
+      setNextTrainingDate(null)
+      setNextTrainingTime(null)
+      setNextTrainingCountdown(null)
+      return
+    }
+
+    const tick = () => {
+      const now = new Date()
+      const nextTd = trainingDates.find((td) => !td.optedOut && getSofiaTargetDate(td.date, td.trainingTime) > now)
+      if (!nextTd) {
+        setNextTrainingDate(null)
+        setNextTrainingTime(null)
+        setNextTrainingCountdown(null)
+        return
+      }
+      const target = getSofiaTargetDate(nextTd.date, nextTd.trainingTime)
+      const diffMs = target.getTime() - now.getTime()
+      const days = Math.floor(diffMs / 86400000)
+      const hours = Math.floor((diffMs % 86400000) / 3600000)
+      const minutes = Math.floor((diffMs % 3600000) / 60000)
+      const seconds = Math.floor((diffMs % 60000) / 1000)
+      setNextTrainingDate(nextTd.date)
+      setNextTrainingTime(nextTd.trainingTime || null)
+      setNextTrainingCountdown({ days, hours, minutes, seconds })
+    }
+
+    tick()
+    const intervalId = setInterval(tick, 1000)
+    return () => clearInterval(intervalId)
+  }, [trainingDates, isAdmin])
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
@@ -702,6 +755,22 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
         {member && !isAdmin && (
           <PushNotificationsPanel cardCode={resolvedParams.cardCode} />
         )}
+
+        {!isAdmin && member && (trainingLoading ? (
+          <p className="training-next-hint">Зареждане на следваща тренировка...</p>
+        ) : nextTrainingDate && nextTrainingCountdown ? (
+          <div className="training-next-card">
+            <p className="training-next-title">
+              Следваща тренировка: {formatIsoDateForBgDisplay(nextTrainingDate)}
+              {nextTrainingTime ? ` ${nextTrainingTime}` : ""}
+            </p>
+            <p className="training-next-countdown">
+              {`${String(nextTrainingCountdown.days).padStart(2, "0")}:${String(nextTrainingCountdown.hours).padStart(2, "0")}:${String(nextTrainingCountdown.minutes).padStart(2, "0")}:${String(nextTrainingCountdown.seconds).padStart(2, "0")}`}
+            </p>
+          </div>
+        ) : trainingDates.length > 0 ? (
+          <p className="training-next-hint">Няма предстояща тренировка.</p>
+        ) : null)}
 
         {/* Partner Discount Buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px', width: '100%' }}>
