@@ -19,12 +19,19 @@ function areSameDates(left: string[], right: string[]) {
   return left.every((value, index) => value === right[index]);
 }
 
+function getTodayIso() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Sofia" });
+}
+
 export function shouldNotifyForTrainingDatesChange(
   previousDates: string[],
   nextDates: string[],
 ) {
-  if (nextDates.length === 0) return false;
-  return !areSameDates(previousDates, nextDates);
+  const today = getTodayIso();
+  const prevFuture = [...previousDates].filter((d) => d >= today).sort();
+  const nextFuture = [...nextDates].filter((d) => d >= today).sort();
+  if (nextFuture.length === 0) return false;
+  return !areSameDates(prevFuture, nextFuture);
 }
 
 export async function sendTrainingScheduleNotifications(input: {
@@ -58,9 +65,10 @@ export async function sendTrainingScheduleNotifications(input: {
 
   if (members.length === 0) return summary;
 
+  const today = getTodayIso();
   const payloadTemplate = buildTrainingSchedulePayload({
-    previousDates: input.previousDates,
-    nextDates: input.trainingDates,
+    previousDates: input.previousDates.filter((d) => d >= today),
+    nextDates: input.trainingDates.filter((d) => d >= today),
   });
 
   for (let index = 0; index < members.length; index += MEMBER_PROCESSING_CONCURRENCY) {
@@ -69,7 +77,7 @@ export async function sendTrainingScheduleNotifications(input: {
       batch.map(async (member) => {
         const payload: PushNotificationPayload = {
           ...payloadTemplate,
-          url: member.cards[0] ? `/member/${member.cards[0].cardCode}` : "/",
+          url: member.cards[0] ? `/member/${member.cards[0].cardCode}?training=1` : "/",
         };
 
         let historySaved = 0;

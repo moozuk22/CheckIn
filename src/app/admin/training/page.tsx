@@ -94,7 +94,7 @@ export default function TrainingPage() {
       if (res.ok) {
         const data = await res.json() as { schedule: TrainingSchedule | null }
         if (data.schedule) {
-          setSelectedDates(data.schedule.trainingDates ?? [])
+          setSelectedDates((data.schedule.trainingDates ?? []).filter((d) => d >= todayIso))
           setTimeMode(data.schedule.timeMode ?? 'single')
           setSingleTime(data.schedule.trainingTime ?? '')
           if (data.schedule.timeMode === 'weekday' && data.schedule.trainingDateTimes) {
@@ -119,6 +119,12 @@ export default function TrainingPage() {
   useEffect(() => {
     void checkSession()
     void fetchSchedule()
+  }, [])
+
+  useEffect(() => {
+    const es = new EventSource('/api/admin/training/stream')
+    es.addEventListener('attendance-update', () => { void fetchSchedule() })
+    return () => es.close()
   }, [])
 
   const limitIso = (() => {

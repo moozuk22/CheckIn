@@ -351,6 +351,15 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false })
   }, [searchParams, member, isAdmin, pathname, router, markNotificationsAsRead])
 
+  useEffect(() => {
+    if (searchParams.get('training') !== '1' || !member || isAdmin) return
+    setTrainingModalOpen(true)
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.delete('training')
+    const nextQuery = nextParams.toString()
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false })
+  }, [searchParams, member, isAdmin, pathname, router])
+
   const handleAnswerChange = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }))
   }

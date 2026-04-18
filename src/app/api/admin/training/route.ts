@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyAdminToken } from "@/lib/adminAuth";
 import { getWeekdayMondayFirst, isIsoDate, isoDateToUtcMidnight } from "@/lib/training";
+import { publishMemberUpdated } from "@/lib/memberEvents";
 import {
   sendTrainingScheduleNotifications,
   shouldNotifyForTrainingDatesChange,
@@ -97,7 +98,8 @@ export async function PUT(request: NextRequest) {
   if (!Array.isArray(rawDates)) {
     return NextResponse.json({ error: "trainingDates must be an array" }, { status: 400 });
   }
-  const trainingDates = rawDates.map(String).filter(isIsoDate).sort();
+  const todayIso = getTodayIso();
+  const trainingDates = rawDates.map(String).filter(isIsoDate).filter((d) => d >= todayIso).sort();
 
   const rawMode = String(body.timeMode ?? "single");
   if (rawMode !== "single" && rawMode !== "weekday" && rawMode !== "date") {
@@ -165,6 +167,16 @@ export async function PUT(request: NextRequest) {
           isActive: true,
         },
       });
+
+  // Publish SSE to all active member card codes so member pages live-update
+  void prisma.card.findMany({
+    where: { isActive: true },
+    select: { cardCode: true },
+  }).then((cards) => {
+    for (const { cardCode } of cards) {
+      publishMemberUpdated(cardCode, "training-updated");
+    }
+  }).catch((err) => console.error("Training SSE publish error:", err));
 
   // Send push notifications if training dates changed
   const previousDates = existing?.trainingDates ?? [];

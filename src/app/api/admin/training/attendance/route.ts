@@ -338,7 +338,7 @@ export async function PATCH(request: NextRequest) {
     body: optedOut
       ? `Администраторът е отбелязал отсъствие за тренировка на ${formattedDate}.`
       : `Администраторът е потвърдил присъствие за тренировка на ${formattedDate}.`,
-    url: firstCardCode ? `/member/${encodeURIComponent(firstCardCode)}` : "/",
+    url: firstCardCode ? `/member/${encodeURIComponent(firstCardCode)}?training=1` : "/",
     icon: "/logo.png",
     badge: "/logo.png",
     tag: "training-attendance-updated",

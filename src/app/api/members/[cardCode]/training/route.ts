@@ -25,6 +25,12 @@ const OPT_OUT_REASON_LABELS_BG = {
 
 type OptOutReasonCode = keyof typeof OPT_OUT_REASON_LABELS_BG;
 
+function formatBgDate(isoDate: string) {
+  return new Date(`${isoDate}T00:00:00.000Z`).toLocaleDateString("bg-BG", {
+    day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC",
+  });
+}
+
 function safeNormalizeTrainingTime(raw: unknown): string | null {
   try {
     return normalizeTrainingTime(raw);
@@ -265,8 +271,8 @@ export async function POST(
 
   void sendPushToAdmins({
     title: "Отсъствие от тренировка",
-    body: `${context.memberName} ще отсъства на ${trainingDate}.`,
-    url: "/admin/training",
+    body: `${context.memberName} ще отсъства на ${formatBgDate(trainingDate)}.`,
+    url: `/admin/members?training=1&date=${trainingDate}`,
     icon: "/logo.png",
     badge: "/logo.png",
     tag: `training-opt-out-${context.memberId}-${trainingDate}`,
@@ -310,8 +316,8 @@ export async function DELETE(
 
   void sendPushToAdmins({
     title: "Потвърдено присъствие",
-    body: `${context.memberName} ще присъства на тренировката на ${trainingDate}.`,
-    url: "/admin/training",
+    body: `${context.memberName} ще присъства на тренировката на ${formatBgDate(trainingDate)}.`,
+    url: `/admin/members?training=1&date=${trainingDate}`,
     icon: "/logo.png",
     badge: "/logo.png",
     tag: `training-opt-in-${context.memberId}-${trainingDate}`,

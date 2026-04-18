@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AdminPushPanel } from "@/components/push/AdminPushPanel";
 
@@ -135,6 +135,8 @@ export default function AdminMembersPage() {
   const [upcomingTrainingDates, setUpcomingTrainingDates] = useState<UpcomingTrainingDate[]>([]);
   const [trainingLoading, setTrainingLoading] = useState(false);
   const [trainingDayDetail, setTrainingDayDetail] = useState<{ date: string; loading: boolean; data: AttendanceDayDetail | null } | null>(null);
+  const trainingDayDetailRef = useRef(trainingDayDetail);
+  useEffect(() => { trainingDayDetailRef.current = trainingDayDetail; }, [trainingDayDetail]);
   const router = useRouter();
 
   const fetchMembers = async (showLoader = true) => {
@@ -178,6 +180,16 @@ export default function AdminMembersPage() {
     await fetchTrainingData(true);
   };
 
+  const refreshDayDetailSilent = async (date: string) => {
+    try {
+      const res = await fetch(`/api/admin/training/attendance?date=${date}`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json() as AttendanceDayDetail;
+        setTrainingDayDetail((prev) => prev?.date === date ? { date, loading: false, data } : prev);
+      }
+    } catch { /* ignore */ }
+  };
+
   const openDayDetail = async (date: string) => {
     setTrainingDayDetail({ date, loading: true, data: null });
     try {
@@ -199,6 +211,8 @@ export default function AdminMembersPage() {
     const es = new EventSource('/api/admin/training/stream');
     es.addEventListener('attendance-update', () => {
       void fetchTrainingData(false);
+      const openDate = trainingDayDetailRef.current?.date;
+      if (openDate) void refreshDayDetailSilent(openDate);
     });
     return () => es.close();
   }, [showTrainingModal]);
@@ -234,7 +248,11 @@ export default function AdminMembersPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('training') === '1') {
-      void openTrainingModal();
+      const date = params.get('date');
+      void (async () => {
+        await openTrainingModal();
+        if (date) void openDayDetail(date);
+      })();
       router.replace('/admin/members');
     }
   }, []);
