@@ -3,6 +3,7 @@
 import { useState, useEffect, use, useRef, useCallback } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { PushNotificationsPanel } from '@/components/push/PushNotificationsPanel'
+import './training-calendar.css'
 
 interface Member {
   id: string
@@ -48,6 +49,23 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
   const [answerStatus, setAnswerStatus] = useState<Record<string, string>>({})
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
 
+  // Training states
+  interface TrainingDate {
+    date: string
+    weekday: number
+    optedOut: boolean
+    optOutReasonCode: string | null
+    optOutReasonText: string | null
+    trainingTime: string
+    note: string
+  }
+  const [trainingDates, setTrainingDates] = useState<TrainingDate[]>([])
+  const [trainingLoading, setTrainingLoading] = useState(false)
+  const [trainingOptOutPending, setTrainingOptOutPending] = useState<Record<string, boolean>>({})
+  const [trainingDetailsDate, setTrainingDetailsDate] = useState<string | null>(null)
+
+  const [trainingModalOpen, setTrainingModalOpen] = useState(false)
+
   // Partner Modal States
   const [sportDepotModalOpen, setSportDepotModalOpen] = useState(false)
   const [idbModalOpen, setIdbModalOpen] = useState(false)
@@ -64,6 +82,46 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+
+  const TRAINING_WEEKDAY_SHORT_BG = ['Пон', 'Вт', 'Ср', 'Чет', 'Пет', 'Съб', 'Нед']
+  const MONTH_NAMES_BG_FULL = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември']
+  const todayDateKey = new Date().toISOString().slice(0, 10)
+
+  function buildTrainingCalendarMonths(dates: TrainingDate[]) {
+    const monthMap = new Map<string, { year: number; month: number }>()
+    for (const item of dates) {
+      const [yearStr, monthStr] = item.date.split('-')
+      const year = Number.parseInt(yearStr ?? '', 10)
+      const month = Number.parseInt(monthStr ?? '', 10)
+      if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) continue
+      monthMap.set(`${year}-${month}`, { year, month })
+    }
+    return [...monthMap.values()]
+      .sort((a, b) => (a.year === b.year ? a.month - b.month : a.year - b.year))
+      .map(({ year, month }) => {
+        const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate()
+        const firstWeekday = new Date(Date.UTC(year, month - 1, 1)).getUTCDay()
+        const leadingEmptyDays = (firstWeekday + 6) % 7
+        const cells: Array<string | null> = Array.from({ length: leadingEmptyDays }, () => null)
+        for (let day = 1; day <= daysInMonth; day += 1) {
+          cells.push(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`)
+        }
+        while (cells.length % 7 !== 0) cells.push(null)
+        return { key: `${year}-${month}`, label: `${MONTH_NAMES_BG_FULL[month - 1] ?? ''} ${year}`, cells }
+      })
+  }
+
+  const fetchTraining = async (cardCode: string) => {
+    try {
+      const res = await fetch(`/api/members/${cardCode}/training`, { cache: 'no-store' })
+      if (res.ok) {
+        const data = await res.json() as { dates?: TrainingDate[] }
+        setTrainingDates(data.dates ?? [])
+      }
+    } catch (err) {
+      console.error('Training fetch error:', err)
+    }
+  }
 
   const refreshQuestions = async () => {
     try {
@@ -130,11 +188,16 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
           setAnswers({})
           setAnswerStatus({})
         }
+
+        await fetchMember(resolvedParams.cardCode, true)
+        if (!isAdminRole) {
+          setTrainingLoading(true)
+          await fetchTraining(resolvedParams.cardCode)
+          setTrainingLoading(false)
+        }
       } catch (err) {
         console.error('Error fetching data:', err)
       }
-
-      await fetchMember(resolvedParams.cardCode, true)
     }
 
     fetchData()
@@ -152,6 +215,9 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
           payload.type === 'notification-created'
         ) {
           await fetchMember(resolvedParams.cardCode)
+        }
+        if (payload.type === 'training-updated' && !isAdmin) {
+          await fetchTraining(resolvedParams.cardCode)
         }
         if ((payload.type === 'questions-updated' || payload.type === 'question-created') && !isAdmin) {
           await refreshQuestions()
@@ -319,6 +385,44 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
       setAnswerStatus((prev) => ({ ...prev, [questionId]: 'Грешка при запазване.' }))
     } finally {
       setSavingAnswers((prev) => ({ ...prev, [questionId]: false }))
+    }
+  }
+
+  const handleTrainingOptOut = async (date: string) => {
+    setTrainingOptOutPending((prev) => ({ ...prev, [date]: true }))
+    try {
+      const res = await fetch(`/api/members/${resolvedParams.cardCode}/training`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trainingDate: date, reasonCode: 'sick' }),
+      })
+      if (res.ok) {
+        await fetchTraining(resolvedParams.cardCode)
+        setTrainingDetailsDate(null)
+      }
+    } catch (err) {
+      console.error('Training opt-out error:', err)
+    } finally {
+      setTrainingOptOutPending((prev) => ({ ...prev, [date]: false }))
+    }
+  }
+
+  const handleTrainingOptIn = async (date: string) => {
+    setTrainingOptOutPending((prev) => ({ ...prev, [date]: true }))
+    try {
+      const res = await fetch(`/api/members/${resolvedParams.cardCode}/training`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trainingDate: date }),
+      })
+      if (res.ok) {
+        await fetchTraining(resolvedParams.cardCode)
+        setTrainingDetailsDate(null)
+      }
+    } catch (err) {
+      console.error('Training opt-in error:', err)
+    } finally {
+      setTrainingOptOutPending((prev) => ({ ...prev, [date]: false }))
     }
   }
 
@@ -811,6 +915,17 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
 
 
 
+        {member && !isAdmin && (
+          <button
+            type="button"
+            onClick={() => setTrainingModalOpen(true)}
+            className="btn btn-primary w-full mb-6"
+            style={{ cursor: 'pointer', marginTop: '32px' }}
+          >
+            Тренировки
+          </button>
+        )}
+
         {isAdmin && member && (
           <div className="space-y-4 mb-6">
             <button
@@ -853,6 +968,152 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
           </button>
         )}
       </div>
+
+      {/* Training modal */}
+      {trainingModalOpen && (
+        <div className="modal-overlay" onClick={() => { setTrainingModalOpen(false); setTrainingDetailsDate(null) }}>
+          <div className="modal-content fade-in" style={{ maxWidth: '420px', maxHeight: '85vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 className="text-gold" style={{ margin: 0 }}>Тренировъчен график</h3>
+              <button
+                type="button"
+                onClick={() => { setTrainingModalOpen(false); setTrainingDetailsDate(null) }}
+                style={{
+                  background: 'transparent', border: 'none', color: 'var(--text-secondary)',
+                  cursor: 'pointer', fontSize: '20px', lineHeight: 1, padding: '4px',
+                }}
+                aria-label="Затвори"
+              >×</button>
+            </div>
+
+            {trainingLoading ? (
+              <div style={{ textAlign: 'center', padding: '24px' }}><div className="loading" /></div>
+            ) : trainingDates.length === 0 ? (
+              <p className="training-empty">Няма настроени тренировъчни дни.</p>
+            ) : (() => {
+              const trainingByDate = new Map(trainingDates.map((td) => [td.date, td]))
+              const calendarMonths = buildTrainingCalendarMonths(trainingDates)
+              return (
+                <>
+                  <div className="training-calendar">
+                    {calendarMonths.map((month) => (
+                      <section key={month.key} className="training-calendar-month">
+                        <h4 className="training-calendar-month-title">{month.label}</h4>
+                        <div className="training-calendar-weekdays">
+                          {TRAINING_WEEKDAY_SHORT_BG.map((wd) => (
+                            <span key={`${month.key}-${wd}`} className="training-calendar-weekday">{wd}</span>
+                          ))}
+                        </div>
+                        <div className="training-calendar-grid">
+                          {month.cells.map((cellDate, index) => {
+                            if (!cellDate) {
+                              return <span key={`${month.key}-empty-${index}`} className="training-calendar-cell training-calendar-cell--empty" aria-hidden="true" />
+                            }
+                            const td = trainingByDate.get(cellDate)
+                            const dayNumber = cellDate.slice(8, 10)
+                            const isToday = cellDate === todayDateKey
+                            if (!td) {
+                              return (
+                                <span key={cellDate} className={`training-calendar-cell training-calendar-cell--off${isToday ? ' training-calendar-cell--today' : ''}`}>
+                                  <span className="training-calendar-day-number">{dayNumber}</span>
+                                </span>
+                              )
+                            }
+                            const isSaving = trainingOptOutPending[cellDate] === true
+                            return (
+                              <button
+                                key={cellDate}
+                                type="button"
+                                className={`training-calendar-cell training-calendar-cell--training${td.optedOut ? ' training-calendar-cell--opted-out' : ''}${isToday ? ' training-calendar-cell--today' : ''}`}
+                                onClick={() => setTrainingDetailsDate(cellDate === trainingDetailsDate ? null : cellDate)}
+                                disabled={isSaving}
+                              >
+                                <span className="training-calendar-day-number">{dayNumber}</span>
+                                {td.trainingTime && <span className="training-calendar-time">{td.trainingTime}</span>}
+                                {isSaving && <span className="training-calendar-mark">...</span>}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+
+                </>
+              )
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Training day action modal */}
+      {trainingModalOpen && trainingDetailsDate && (() => {
+        const td = trainingDates.find((d) => d.date === trainingDetailsDate) ?? null
+        if (!td) return null
+        const isPending = trainingOptOutPending[trainingDetailsDate] === true
+        return (
+          <div
+            className="modal-overlay"
+            style={{ zIndex: 1100 }}
+            onClick={() => setTrainingDetailsDate(null)}
+          >
+            <div
+              className="modal-content fade-in"
+              style={{ maxWidth: '300px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '15px', color: '#fff' }}>
+                    {new Date(`${td.date}T12:00:00.000Z`).toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  </div>
+                  {td.trainingTime && (
+                    <div style={{ fontSize: '13px', opacity: 0.75, marginTop: '2px' }}>
+                      <span style={{ opacity: 0.6 }}>Час </span>{td.trainingTime}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTrainingDetailsDate(null)}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '20px', lineHeight: 1, padding: '4px' }}
+                  aria-label="Затвори"
+                >×</button>
+              </div>
+              {td.note && (
+                <p style={{ margin: '0 0 14px', fontSize: '13px', color: 'rgba(255,255,255,0.75)', lineHeight: 1.4 }}>{td.note}</p>
+              )}
+              {td.optedOut ? (
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => handleTrainingOptIn(td.date)}
+                  style={{
+                    width: '100%', padding: '10px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
+                    background: 'rgba(212,175,55,0.18)', border: '1px solid rgba(212,175,55,0.55)',
+                    color: 'var(--accent-gold-color, #d4af37)', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.6 : 1,
+                  }}
+                >
+                  {isPending ? 'Запазване...' : 'Присъствам'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => handleTrainingOptOut(td.date)}
+                  style={{
+                    width: '100%', padding: '10px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
+                    background: 'rgba(255,107,107,0.15)', border: '1px solid rgba(255,107,107,0.4)',
+                    color: '#ff8f8f', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.6 : 1,
+                  }}
+                >
+                  {isPending ? 'Запазване...' : 'Отсъствам'}
+                </button>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Sport Depot discount modal */}
       {sportDepotModalOpen && (

@@ -2,6 +2,55 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { AdminPushPanel } from "@/components/push/AdminPushPanel";
+
+const MODAL_MONTH_NAMES = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември']
+const MODAL_WEEKDAY_SHORT = ['Пон', 'Вт', 'Ср', 'Чет', 'Пет', 'Съб', 'Нед']
+const MODAL_WEEKDAY_FULL = ['Понеделник', 'Вторник', 'Сряда', 'Четвъртък', 'Петък', 'Събота', 'Неделя']
+
+function getModalTodayIso() {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Sofia' })
+}
+
+function buildModalCalendarMonths(todayIso: string) {
+  const limit = new Date(`${todayIso}T00:00:00.000Z`)
+  limit.setUTCDate(limit.getUTCDate() + 30)
+  const limitIso = limit.toISOString().slice(0, 10)
+  const monthsNeeded = new Set<string>()
+  const cur = new Date(`${todayIso}T00:00:00.000Z`)
+  while (cur <= limit) {
+    monthsNeeded.add(`${cur.getUTCFullYear()}-${cur.getUTCMonth() + 1}`)
+    cur.setUTCDate(cur.getUTCDate() + 1)
+  }
+  return [...monthsNeeded]
+    .map((key) => {
+      const [y, m] = key.split('-').map(Number) as [number, number]
+      return { year: y, month: m }
+    })
+    .sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year)
+    .map(({ year, month }) => {
+      const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate()
+      const firstWeekday = new Date(Date.UTC(year, month - 1, 1)).getUTCDay()
+      const leadingEmpty = (firstWeekday + 6) % 7
+      const cells: Array<string | null> = Array.from({ length: leadingEmpty }, () => null)
+      for (let day = 1; day <= daysInMonth; day++) {
+        cells.push(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`)
+      }
+      while (cells.length % 7 !== 0) cells.push(null)
+      return { key: `${year}-${month}`, label: `${MODAL_MONTH_NAMES[month - 1] ?? ''} ${year}`, cells, limitIso }
+    })
+}
+
+function resolveModalTime(
+  date: string,
+  weekday: number,
+  schedule: { timeMode: string; trainingTime: string | null; trainingDateTimes: Record<string, string> | null },
+): string | null {
+  const map = (schedule.trainingDateTimes ?? {}) as Record<string, string>
+  if (schedule.timeMode === 'single') return schedule.trainingTime ?? null
+  if (schedule.timeMode === 'weekday') return map[String(weekday)] ?? schedule.trainingTime ?? null
+  return map[date] ?? schedule.trainingTime ?? null
+}
 
 interface Card {
   id: string;
@@ -27,6 +76,21 @@ interface Question {
   answersCount?: number;
 }
 
+interface TrainingSchedule {
+  id: string;
+  timeMode: 'single' | 'weekday' | 'date';
+  trainingTime: string | null;
+  trainingDateTimes: Record<string, string> | null;
+  isActive: boolean;
+}
+
+interface UpcomingTrainingDate {
+  date: string;
+  weekday: number;
+  attendingCount: number;
+  totalMembers: number;
+}
+
 interface QuestionAnswer {
   id: string;
   answer: string;
@@ -34,6 +98,22 @@ interface QuestionAnswer {
     firstName: string;
     secondName: string;
   };
+}
+
+interface AttendanceMember {
+  id: string;
+  fullName: string;
+  cardCode: string | null;
+  optedOut: boolean;
+}
+
+interface AttendanceDayDetail {
+  trainingDate: string;
+  weekday: number;
+  trainingTime: string | null;
+  note: string;
+  stats: { total: number; optedOut: number; attending: number };
+  members: AttendanceMember[];
 }
 
 export default function AdminMembersPage() {
@@ -50,6 +130,11 @@ export default function AdminMembersPage() {
   const [isLoadingAnswers, setIsLoadingAnswers] = useState(false);
   const [view, setView] = useState<'members' | 'questions'>('members');
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [showTrainingModal, setShowTrainingModal] = useState(false);
+  const [trainingSchedule, setTrainingSchedule] = useState<TrainingSchedule | null>(null);
+  const [upcomingTrainingDates, setUpcomingTrainingDates] = useState<UpcomingTrainingDate[]>([]);
+  const [trainingLoading, setTrainingLoading] = useState(false);
+  const [trainingDayDetail, setTrainingDayDetail] = useState<{ date: string; loading: boolean; data: AttendanceDayDetail | null } | null>(null);
   const router = useRouter();
 
   const fetchMembers = async (showLoader = true) => {
@@ -71,6 +156,52 @@ export default function AdminMembersPage() {
       }
     }
   };
+
+  const fetchTrainingData = async (showLoader = true) => {
+    if (showLoader) setTrainingLoading(true);
+    try {
+      const res = await fetch('/api/admin/training', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json() as { schedule: TrainingSchedule | null; upcomingDates: UpcomingTrainingDate[] };
+        setTrainingSchedule(data.schedule);
+        setUpcomingTrainingDates(data.upcomingDates ?? []);
+      }
+    } catch (err) {
+      console.error('Training schedule fetch error:', err);
+    } finally {
+      if (showLoader) setTrainingLoading(false);
+    }
+  };
+
+  const openTrainingModal = async () => {
+    setShowTrainingModal(true);
+    await fetchTrainingData(true);
+  };
+
+  const openDayDetail = async (date: string) => {
+    setTrainingDayDetail({ date, loading: true, data: null });
+    try {
+      const res = await fetch(`/api/admin/training/attendance?date=${date}`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json() as AttendanceDayDetail;
+        setTrainingDayDetail({ date, loading: false, data });
+      } else {
+        setTrainingDayDetail(null);
+      }
+    } catch {
+      setTrainingDayDetail(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!showTrainingModal) return;
+
+    const es = new EventSource('/api/admin/training/stream');
+    es.addEventListener('attendance-update', () => {
+      void fetchTrainingData(false);
+    });
+    return () => es.close();
+  }, [showTrainingModal]);
 
   const fetchQuestions = async (showLoader = true) => {
     if (showLoader) {
@@ -99,6 +230,14 @@ export default function AdminMembersPage() {
       fetchQuestions();
     }
   }, [view]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('training') === '1') {
+      void openTrainingModal();
+      router.replace('/admin/members');
+    }
+  }, []);
 
   useEffect(() => {
     if (view !== "questions") return;
@@ -241,11 +380,17 @@ export default function AdminMembersPage() {
         >
           Медия библиотека
         </button>
-        <button 
+        <button
           onClick={() => router.push("/admin/questions/add")}
           className="btn btn-primary"
         >
           Добави въпрос
+        </button>
+        <button
+          onClick={() => void openTrainingModal()}
+          className="btn btn-primary"
+        >
+          Тренировки
         </button>
         <button 
           onClick={handleLogout}
@@ -254,6 +399,8 @@ export default function AdminMembersPage() {
           Изход
         </button>
       </div>
+
+      <AdminPushPanel />
 
       {/* View Toggle Buttons */}
       <div className="flex justify-center gap-4 mb-8">
@@ -639,6 +786,222 @@ export default function AdminMembersPage() {
                 {isDeletingQuestion ? "Изтриване..." : "Изтрий"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showTrainingModal && (
+        <div className="modal-overlay" onClick={() => setShowTrainingModal(false)}>
+          <div className="modal-content fade-in" style={{ maxWidth: '520px', width: '100%', maxHeight: '80vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-gold mb-4">Тренировки</h3>
+
+            {trainingLoading ? (
+              <div className="flex flex-col items-center justify-center" style={{ minHeight: '120px' }}>
+                <div className="loading mb-3"></div>
+              </div>
+            ) : !trainingSchedule ? (
+              <div className="alert alert-warning mb-6">Няма настроен график.</div>
+            ) : (() => {
+                const todayIso = getModalTodayIso()
+                const trainingDateSet = new Set(upcomingTrainingDates.map((d) => d.date))
+                const weekdayByDate = new Map(upcomingTrainingDates.map((d) => [d.date, d.weekday]))
+                const attendanceByDate = new Map(upcomingTrainingDates.map((d) => [d.date, { attending: d.attendingCount, total: d.totalMembers }]))
+                const calMonths = buildModalCalendarMonths(todayIso)
+                return (
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    {upcomingTrainingDates.length === 0 && (
+                      <div style={{ fontSize: '13px', opacity: 0.6, marginBottom: '4px' }}>Няма предстоящи тренировки.</div>
+                    )}
+                    {calMonths.map((month) => (
+                      <div key={month.key} style={{
+                        border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px',
+                        padding: '10px', background: 'rgba(255,255,255,0.02)',
+                      }}>
+                        <div style={{ fontSize: '12px', fontWeight: 700, marginBottom: '6px', color: 'rgba(255,255,255,0.95)' }}>
+                          {month.label}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '2px', marginBottom: '4px' }}>
+                          {MODAL_WEEKDAY_SHORT.map((wd) => (
+                            <span key={wd} style={{ textAlign: 'center', fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.55)' }}>{wd}</span>
+                          ))}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '2px' }}>
+                          {month.cells.map((date, idx) => {
+                            if (!date) {
+                              return <span key={`e-${idx}`} style={{ aspectRatio: '1/1' }} />
+                            }
+                            const isPast = date < todayIso
+                            const isBeyond = date > month.limitIso
+                            const isTraining = trainingDateSet.has(date)
+                            const weekday = weekdayByDate.get(date) ?? 0
+                            const time = isTraining ? resolveModalTime(date, weekday, trainingSchedule) : null
+                            const dayNum = date.slice(8, 10)
+
+                            if (isPast || isBeyond) {
+                              return (
+                                <span key={date} style={{
+                                  aspectRatio: '1/1', borderRadius: '5px', display: 'inline-flex',
+                                  alignItems: 'center', justifyContent: 'center',
+                                  fontSize: '9px', fontWeight: 700,
+                                  color: 'rgba(255,255,255,0.25)',
+                                  background: 'rgba(255,255,255,0.02)',
+                                  border: '1px solid rgba(255,255,255,0.06)',
+                                }}>{dayNum}</span>
+                              )
+                            }
+
+                            if (isTraining) {
+                              const att = attendanceByDate.get(date)
+                              return (
+                                <button key={date} type="button" onClick={() => void openDayDetail(date)} style={{
+                                  aspectRatio: '1/1', borderRadius: '5px', display: 'inline-flex',
+                                  flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                  gap: '1px', padding: '2px 1px',
+                                  border: '1px solid rgba(212,175,55,0.7)',
+                                  background: 'rgba(212,175,55,0.18)',
+                                  color: 'var(--accent-gold-color, #d4af37)',
+                                  cursor: 'pointer',
+                                }}>
+                                  <span style={{ fontSize: '12px', fontWeight: 700, lineHeight: 1, color: '#f5d97a' }}>{dayNum}</span>
+                                  {time && <span style={{ fontSize: '9px', fontWeight: 700, lineHeight: 1, color: '#ffffff' }}>{time}</span>}
+                                  {att && <span style={{ fontSize: '8px', fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,0.75)' }}>{att.attending}/{att.total}</span>}
+                                </button>
+                              )
+                            }
+
+                            return (
+                              <span key={date} style={{
+                                aspectRatio: '1/1', borderRadius: '5px', display: 'inline-flex',
+                                alignItems: 'center', justifyContent: 'center',
+                                fontSize: '9px', fontWeight: 700,
+                                color: 'rgba(255,255,255,0.7)',
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                              }}>{dayNum}</span>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+
+            <div className="flex gap-4 justify-center" style={{ marginTop: '32px' }}>
+              <button
+                onClick={() => setShowTrainingModal(false)}
+                className="btn btn-secondary px-6"
+              >
+                Затвори
+              </button>
+              <button
+                onClick={() => { setShowTrainingModal(false); router.push('/admin/training'); }}
+                className="btn btn-primary px-6"
+              >
+                Редактирай
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {trainingDayDetail && (
+        <div
+          className="modal-overlay"
+          style={{ zIndex: 1100 }}
+          onClick={() => setTrainingDayDetail(null)}
+        >
+          <div
+            className="modal-content fade-in"
+            style={{ maxWidth: '420px', width: '100%', maxHeight: '80vh', overflow: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {trainingDayDetail.loading ? (
+              <div className="flex flex-col items-center justify-center" style={{ minHeight: '120px' }}>
+                <div className="loading mb-3"></div>
+              </div>
+            ) : trainingDayDetail.data ? (() => {
+              const d = trainingDayDetail.data;
+              const [y, m, day] = d.trainingDate.split('-').map(Number) as [number, number, number];
+              const monthName = MODAL_MONTH_NAMES[(m ?? 1) - 1] ?? '';
+              const weekdayName = MODAL_WEEKDAY_FULL[(d.weekday ?? 1) - 1] ?? '';
+              return (
+                <>
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#f5d97a', marginBottom: '4px' }}>
+                      {weekdayName}, {day} {monthName} {y}
+                    </div>
+                    {d.trainingTime && (
+                      <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.75)', marginBottom: '4px' }}>
+                        <span style={{ opacity: 0.6 }}>Час </span>{d.trainingTime}
+                      </div>
+                    )}
+                    <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>
+                      Присъстват: <span style={{ color: '#f5d97a' }}>{d.stats.attending}</span>
+                      <span style={{ opacity: 0.5, margin: '0 4px' }}>/</span>
+                      <span style={{ opacity: 0.7 }}>{d.stats.total}</span>
+                    </div>
+                    {d.note && (
+                      <div style={{ marginTop: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
+                        {d.note}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    overflow: 'auto',
+                    maxHeight: '340px',
+                    background: 'rgba(255,255,255,0.02)',
+                  }}>
+                    {d.members.map((member, idx) => (
+                      <div key={member.id} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 14px',
+                        borderBottom: idx < d.members.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+                      }}>
+                        <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
+                          {member.fullName}
+                        </span>
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          padding: '3px 10px',
+                          borderRadius: '999px',
+                          color: member.optedOut ? '#ff8f8f' : '#f5d97a',
+                          background: member.optedOut ? 'rgba(255,107,107,0.12)' : 'rgba(212,175,55,0.12)',
+                          border: `1px solid ${member.optedOut ? 'rgba(255,107,107,0.35)' : 'rgba(212,175,55,0.35)'}`,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {member.optedOut ? 'Отсъства' : 'Присъства'}
+                        </span>
+                      </div>
+                    ))}
+                    {d.members.length === 0 && (
+                      <div style={{ padding: '20px', textAlign: 'center', opacity: 0.5, fontSize: '13px' }}>
+                        Няма членове.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-center" style={{ marginTop: '20px' }}>
+                    <button
+                      onClick={() => setTrainingDayDetail(null)}
+                      className="btn btn-secondary px-6"
+                    >
+                      Затвори
+                    </button>
+                  </div>
+                </>
+              );
+            })() : (
+              <div style={{ textAlign: 'center', padding: '20px', opacity: 0.6 }}>
+                Грешка при зареждане.
+              </div>
+            )}
           </div>
         </div>
       )}

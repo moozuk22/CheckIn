@@ -17,6 +17,7 @@ model Member {
   answers           MemberQuestionAnswer[]
   pushSubscriptions PushSubscription[]
   notifications     MemberNotification[]
+  trainingOptOuts   TrainingOptOut[]
 
   @@map("members")
 }
@@ -196,4 +197,58 @@ model AuditLog {
   @@index([createdAt])
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+model AdminPushSubscription {
+  id        String   @id @default(uuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  device    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("admin_push_subscriptions")
+}
+
+model TrainingSchedule {
+  id                 String   @id @default(uuid())
+  trainingWeekdays   Int[]
+  trainingTime       String?
+  trainingWindowDays Int      @default(30)
+  isActive           Boolean  @default(true)
+  timeMode           String   @default("single")
+  trainingDates      String[]
+  trainingDateTimes  Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("training_schedules")
+}
+
+model TrainingOptOut {
+  id           String   @id @default(uuid())
+  memberId     String
+  trainingDate DateTime @db.Date
+  reasonCode   String?
+  reasonText   String?
+  createdAt    DateTime @default(now())
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, trainingDate])
+  @@index([trainingDate])
+  @@map("training_opt_outs")
+}
+
+model TrainingNote {
+  id           String   @id @default(uuid())
+  trainingDate DateTime @db.Date @unique
+  note         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("training_notes")
 }

@@ -1,0 +1,184 @@
+.training-calendar {
+  display: grid;
+  gap: 10px;
+  max-width: 380px;
+}
+
+.training-calendar-month {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.training-calendar-month-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.training-calendar-weekdays,
+.training-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.training-calendar-weekdays {
+  margin-bottom: 4px;
+}
+
+.training-calendar-weekday {
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.training-calendar-cell {
+  min-height: 46px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 5px 6px;
+  text-align: center;
+  background: transparent;
+}
+
+.training-calendar-cell--empty {
+  border: none;
+  background: transparent;
+}
+
+.training-calendar-cell--off {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.52);
+}
+
+.training-calendar-cell--training {
+  background: rgba(212, 175, 55, 0.12);
+  border-color: rgba(212, 175, 55, 0.45);
+  color: #f5d97a;
+  cursor: pointer;
+  transition: background 0.15s;
+  width: 100%;
+}
+
+.training-calendar-cell--training:hover {
+  background: rgba(212, 175, 55, 0.2);
+}
+
+.training-calendar-cell--opted-out {
+  background: rgba(255, 107, 107, 0.14);
+  border-color: rgba(255, 107, 107, 0.35);
+}
+
+.training-calendar-cell--today {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+
+.training-calendar-cell--training:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.training-calendar-day-number {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.training-calendar-time {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.training-calendar-mark {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.training-empty {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.64);
+}
+
+/* Day details panel shown below calendar */
+.training-day-details {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  margin-top: 10px;
+}
+
+.training-day-details-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.training-day-details-note {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+
+.training-day-details-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.training-opt-out-reason {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.training-reason-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.training-reason-chip {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color, rgba(255,255,255,0.15));
+  color: var(--text-primary, #fff);
+  cursor: pointer;
+}
+
+.training-reason-chip--active {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.training-reason-textarea {
+  width: 100%;
+  min-height: 60px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 13px;
+  resize: vertical;
+  box-sizing: border-box;
+}
