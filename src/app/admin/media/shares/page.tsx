@@ -7,12 +7,10 @@ interface ShareLink {
   id: string;
   token: string;
   name: string | null;
-  expiresAt: string;
   createdAt: string;
   accessCount: number;
   videoCount: number;
   publicUrl: string;
-  isExpired: boolean;
 }
 
 interface BrowserFolder {
@@ -100,17 +98,17 @@ export default function SharesPage() {
     setSelected(new Map());
     setShareName("");
     setBrowserBreadcrumb([{ id: null, name: "Библиотека" }]);
-    navigateToFolder(null);
+    void navigateToFolder(null);
   };
 
   const enterFolder = (child: BrowserFolder) => {
     setBrowserBreadcrumb((prev) => [...prev, { id: child.id, name: child.name }]);
-    navigateToFolder(child.id);
+    void navigateToFolder(child.id);
   };
 
   const navigateTo = (entry: { id: string | null; name: string }, index: number) => {
     setBrowserBreadcrumb((prev) => prev.slice(0, index + 1));
-    navigateToFolder(entry.id);
+    void navigateToFolder(entry.id);
   };
 
   const toggleFile = (id: string, name: string) => {
@@ -153,11 +151,11 @@ export default function SharesPage() {
     try {
       const res = await fetch(`/api/admin/shares/${deletingShare.id}`, { method: "DELETE" });
       if (res.ok) {
-        setShares(shares.filter((s) => s.id !== deletingShare.id));
+        setShares((prev) => prev.filter((s) => s.id !== deletingShare.id));
         setDeletingShare(null);
       }
     } catch {
-      alert("Грешка при деактивиране.");
+      alert("Грешка при изтриване.");
     }
   };
 
@@ -218,37 +216,34 @@ export default function SharesPage() {
                     <span
                       className="badge"
                       style={{
-                        background: share.isExpired ? "var(--error)" : "var(--success)",
+                        background: "var(--success)",
                         color: "#000",
                         fontSize: "0.7rem",
                       }}
                     >
-                      {share.isExpired ? "Изтекъл" : "Активен"}
+                      Активен
                     </span>
                   </div>
                   <div className="text-muted" style={{ fontSize: "0.8rem", marginTop: "4px" }}>
                     {share.videoCount} видеа ·{" "}
                     Създаден: {new Date(share.createdAt).toLocaleDateString("bg-BG")} ·{" "}
-                    Изтича: {new Date(share.expiresAt).toLocaleDateString("bg-BG")} ·{" "}
                     Достъпвания: {share.accessCount}
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  {!share.isExpired && (
-                    <button
-                      className="btn btn-primary"
-                      style={{ padding: "6px 12px", fontSize: "12px" }}
-                      onClick={() => copyUrl(share)}
-                    >
-                      {copiedId === share.id ? "Копирано!" : "Копирай линк"}
-                    </button>
-                  )}
+                  <button
+                    className="btn btn-primary"
+                    style={{ padding: "6px 12px", fontSize: "12px" }}
+                    onClick={() => copyUrl(share)}
+                  >
+                    {copiedId === share.id ? "Копирано!" : "Копирай линк"}
+                  </button>
                   <button
                     className="btn btn-error"
                     style={{ padding: "6px 12px", fontSize: "12px" }}
                     onClick={() => setDeletingShare(share)}
                   >
-                    Деактивирай
+                    Изтрий
                   </button>
                 </div>
               </div>
@@ -257,7 +252,6 @@ export default function SharesPage() {
         </div>
       )}
 
-      {/* Create share modal */}
       {showCreate && (
         <div className="modal-overlay" onClick={() => !creating && setShowCreate(false)}>
           <div
@@ -267,7 +261,7 @@ export default function SharesPage() {
           >
             <h3 style={{ marginBottom: "8px", textAlign: "center" }}>Създай линк за споделяне</h3>
             <p className="text-muted" style={{ marginBottom: "16px", fontSize: "0.85rem", textAlign: "center" }}>
-              Линкът изтича след 7 дни
+              Линкът остава активен, докато не бъде изтрит ръчно.
             </p>
             <input
               type="text"
@@ -280,7 +274,6 @@ export default function SharesPage() {
               Избери видеа:
             </p>
 
-            {/* Folder browser panel */}
             <div
               style={{
                 border: "1px solid var(--border-color)",
@@ -290,7 +283,6 @@ export default function SharesPage() {
                 flexShrink: 0,
               }}
             >
-              {/* Breadcrumb */}
               <div
                 style={{
                   display: "flex",
@@ -324,7 +316,6 @@ export default function SharesPage() {
                 ))}
               </div>
 
-              {/* Content */}
               <div style={{ maxHeight: "280px", overflowY: "auto" }}>
                 {browserLoading ? (
                   <div className="flex justify-center" style={{ padding: "24px" }}>
@@ -391,7 +382,6 @@ export default function SharesPage() {
               </div>
             </div>
 
-            {/* Selected summary */}
             {selected.size > 0 && (
               <p style={{ marginBottom: "12px", fontSize: "0.85rem", color: "var(--accent-gold-color)" }}>
                 Избрани: {selected.size} видеа
@@ -414,23 +404,22 @@ export default function SharesPage() {
         </div>
       )}
 
-      {/* Delete confirmation */}
       {deletingShare && (
         <div className="modal-overlay" onClick={() => setDeletingShare(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ marginBottom: "16px" }}>Потвърждение</h3>
             <p style={{ marginBottom: "24px" }}>
-              Деактивиране на линк <strong>{deletingShare.name || "без име"}</strong>?
+              Изтриване на линк <strong>{deletingShare.name || "без име"}</strong>?
             </p>
             <p className="text-muted" style={{ marginBottom: "24px", fontSize: "0.85rem" }}>
-              Линкът ще стане неактивен. Видеата няма да бъдат изтрити.
+              Линкът ще бъде премахнат от списъка. Видеата няма да бъдат изтрити.
             </p>
             <div className="flex justify-center gap-4">
               <button className="btn btn-secondary" onClick={() => setDeletingShare(null)}>
                 Отказ
               </button>
               <button className="btn btn-error" onClick={handleDelete}>
-                Деактивирай
+                Изтрий
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import "./folders/[id]/page.css";
 import "./page.css";
 
 interface Folder {
@@ -229,122 +230,132 @@ export default function MediaLibraryPage() {
   const allFoldersSelected = folders.length > 0 && selectedFolderIds.size === folders.length;
 
   return (
-    <div className="container p-6 fade-in ml-page">
-      <div className="flex-col flex items-center text-center mb-8 ml-title-wrap">
-        <h1 className="text-gold mb-2 ml-title">
-          Медия библиотека
-        </h1>
-      </div>
+    <>
+      <div className="fd-root">
+        <div className="fd-container fd-library-container">
+          <div className="fd-header">
+            <h1 className="fd-title">Медия библиотека</h1>
+          </div>
 
-      <div className="flex justify-center gap-4 mb-8 ml-nav-actions">
-        <button onClick={() => router.push("/admin/media/shares")} className="btn btn-primary">
-          Споделени линкове
-        </button>
-        {isAdminRole && (<button onClick={() => router.push("/admin/audit")} className="btn btn-secondary">
-          Одитен дневник
-        </button>)}
-        {(isAdminRole || memberReturnCardCode) && (<button onClick={handleBack} className="btn btn-secondary">
-          Назад
-        </button>)}
-        {(isAdminRole || isMediaManager) && (
-          <button onClick={async () => { await fetch("/api/admin/logout", { method: "POST" }); router.push("/admin/login"); }} className="btn btn-secondary">
-            Изход
-          </button>
-        )}
-      </div>
+          <div className="fd-actions">
+            <button onClick={() => router.push("/admin/media/shares")} className="fd-btn fd-btn-primary">
+              Споделени линкове
+            </button>
+            {isAdminRole && (
+              <button onClick={() => router.push("/admin/audit")} className="fd-btn fd-btn-secondary">
+                Одитен дневник
+              </button>
+            )}
+            {(isAdminRole || memberReturnCardCode) && (
+              <button onClick={handleBack} className="fd-btn fd-btn-secondary">
+                Назад
+              </button>
+            )}
+            {(isAdminRole || isMediaManager) && (
+              <button
+                onClick={async () => {
+                  await fetch("/api/admin/logout", { method: "POST" });
+                  router.push("/admin/login");
+                }}
+                className="fd-btn fd-btn-ghost"
+              >
+                Изход
+              </button>
+            )}
+          </div>
 
-      <div className="mb-8 ml-folders-section">
-        <div className="flex justify-between items-center mb-4 ml-folders-header">
-          <h2 className="ml-folders-title">Папки</h2>
-          <div className="flex gap-2 ml-bulk-toolbar">
-            <button
-              className="btn btn-secondary ml-btn-sm"
-              onClick={toggleSelectAllFolders}
-              disabled={folders.length === 0 || downloadingSelection}
-            >
-              {allFoldersSelected ? "Размаркирай всички" : "Маркирай всички"}
-            </button>
-            <button
-              className="btn btn-primary ml-btn-sm"
-              onClick={handleDownloadSelectedFolders}
-              disabled={selectedFolderIds.size === 0 || downloadingSelection}
-            >
-              {downloadingSelection ? "Сваляне..." : `Свали избрани (${selectedFolderIds.size})`}
-            </button>
-            <button
-              className="btn btn-secondary ml-btn-sm"
-              onClick={() => setShowNewFolder(true)}
-            >
-              Нова папка
-            </button>
+          <div className="fd-section">
+            <div className="fd-section-header">
+              <span className="fd-section-title">Папки</span>
+              <span className="fd-section-count">{folders.length}</span>
+              <div className="fd-section-line" />
+              <div className="fd-media-bulk-actions fd-library-bulk-actions">
+                <button
+                  className="fd-btn fd-btn-ghost fd-btn-sm"
+                  onClick={toggleSelectAllFolders}
+                  disabled={folders.length === 0 || downloadingSelection}
+                >
+                  {allFoldersSelected ? "Размаркирай всички" : "Маркирай всички"}
+                </button>
+                <button
+                  className="fd-btn fd-btn-secondary fd-btn-sm"
+                  onClick={handleDownloadSelectedFolders}
+                  disabled={selectedFolderIds.size === 0 || downloadingSelection}
+                >
+                  {downloadingSelection ? "Сваляне..." : `Свали избрани (${selectedFolderIds.size})`}
+                </button>
+                <button className="fd-btn fd-btn-primary fd-btn-sm" onClick={() => setShowNewFolder(true)}>
+                  Нова папка
+                </button>
+              </div>
+            </div>
+
+            {folders.length === 0 ? (
+              <div className="fd-empty fd-library-empty">
+                <p className="fd-empty-text">Няма създадени папки</p>
+              </div>
+            ) : (
+              <div className="fd-folder-grid fd-library-folder-grid">
+                {folders.map((folder) => (
+                  <div
+                    key={folder.id}
+                    className={`fd-folder-card fd-library-folder-card ${selectedFolderIds.has(folder.id) ? "fd-library-folder-card-selected" : ""}`}
+                    onClick={() => router.push(`/admin/media/folders/${folder.id}`)}
+                  >
+                    <label className="fd-library-folder-select" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="fd-media-checkbox"
+                        checked={selectedFolderIds.has(folder.id)}
+                        onChange={() => toggleFolderSelection(folder.id)}
+                        aria-label={`Select folder ${folder.name}`}
+                        disabled={downloadingSelection}
+                      />
+                    </label>
+                    <div className="fd-folder-icon">📁</div>
+                    <div className="fd-folder-info">
+                      <div className="fd-folder-name">{folder.name}</div>
+                      <div className="fd-folder-meta">
+                        {folder._count.items} видеа · {folder._count.children} подпапки
+                      </div>
+                    </div>
+                    {isAdminRole && (
+                      <button
+                        className="fd-btn fd-btn-danger fd-btn-sm fd-library-folder-delete"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeletingFolder(folder);
+                        }}
+                      >
+                        Изтрий
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-        {folders.length === 0 ? (
-          <p className="text-muted ml-empty">
-            Няма създадени папки
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 ml-folder-list">
-            {folders.map((folder) => (
-              <div
-                key={folder.id}
-                className={`folder-card ml-folder-card ${selectedFolderIds.has(folder.id) ? "ml-folder-card-selected" : ""}`}
-                onClick={() => router.push(`/admin/media/folders/${folder.id}`)}
-              >
-                <label
-                  className="ml-folder-select"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <input
-                    type="checkbox"
-                    className="ml-folder-checkbox"
-                    checked={selectedFolderIds.has(folder.id)}
-                    onChange={() => toggleFolderSelection(folder.id)}
-                    aria-label={`Select folder ${folder.name}`}
-                    disabled={downloadingSelection}
-                  />
-                </label>
-                <div className="ml-folder-content">
-                  <strong>{folder.name}</strong>
-                  <span className="text-muted ml-folder-meta">
-                    {folder._count.items} видеа · {folder._count.children} подпапки
-                  </span>
-                </div>
-                {isAdminRole && (
-                  <button
-                    className="btn btn-error ml-delete-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeletingFolder(folder);
-                    }}
-                  >
-                    Изтрий
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {showNewFolder && (
-        <div className="modal-overlay" onClick={() => setShowNewFolder(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginBottom: "16px" }}>Нова папка</h3>
+        <div className="fd-overlay" onClick={() => setShowNewFolder(false)}>
+          <div className="fd-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="fd-modal-title">Нова папка</h3>
             <input
               type="text"
+              className="fd-input"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
               placeholder="Име на папката"
               onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
-              style={{ marginBottom: "24px" }}
               autoFocus
             />
-            <div className="flex justify-center gap-4">
-              <button className="btn btn-secondary" onClick={() => setShowNewFolder(false)}>
+            <div className="fd-modal-actions">
+              <button className="fd-btn fd-btn-ghost" onClick={() => setShowNewFolder(false)}>
                 Отказ
               </button>
-              <button className="btn btn-primary" onClick={handleCreateFolder}>
+              <button className="fd-btn fd-btn-primary" onClick={handleCreateFolder}>
                 Създай
               </button>
             </div>
@@ -353,21 +364,21 @@ export default function MediaLibraryPage() {
       )}
 
       {deletingFolder && (
-        <div className="modal-overlay" onClick={() => setDeletingFolder(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginBottom: "16px" }}>Потвърждение</h3>
-            <p style={{ marginBottom: "24px" }}>
-              Изтриване на папка <strong>{deletingFolder.name}</strong>?
+        <div className="fd-overlay" onClick={() => setDeletingFolder(null)}>
+          <div className="fd-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="fd-modal-title">Потвърждение</h3>
+            <p className="fd-modal-body">
+              Изтриване на папка <strong style={{ color: "#e8e0d0" }}>{deletingFolder.name}</strong>?
             </p>
-            <p className="text-muted" style={{ marginBottom: "24px", fontSize: "0.85rem" }}>
+            <div className="fd-modal-note">
               Всички подпапки и референции ще бъдат премахнати. Физическите файлове няма да бъдат изтрити.
-            </p>
-            <div className="flex justify-center gap-4">
-              <button className="btn btn-secondary" onClick={() => setDeletingFolder(null)}>
+            </div>
+            <div className="fd-modal-actions">
+              <button className="fd-btn fd-btn-ghost" onClick={() => setDeletingFolder(null)}>
                 Отказ
               </button>
               {isAdminRole && (
-                <button className="btn btn-error" onClick={handleDeleteFolder}>
+                <button className="fd-btn fd-btn-danger" onClick={handleDeleteFolder}>
                   Изтрий
                 </button>
               )}
@@ -375,6 +386,6 @@ export default function MediaLibraryPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

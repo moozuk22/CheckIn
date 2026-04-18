@@ -15,12 +15,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const { token, videoId } = await params;
 
   try {
-    // Validate share link and check expiry
+    // Validate share link
     const share = await prisma.shareLink.findUnique({
       where: { token },
       select: {
         id: true,
-        expiresAt: true,
         items: {
           where: { mediaFileId: videoId },
           select: { id: true },
@@ -30,13 +29,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     if (!share) {
       return NextResponse.json({ error: "Невалиден линк" }, { status: 404 });
-    }
-
-    if (share.expiresAt < new Date()) {
-      return NextResponse.json(
-        { error: "Този линк е изтекъл" },
-        { status: 410 }
-      );
     }
 
     if (share.items.length === 0) {
@@ -142,7 +134,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    // No range — serve full file
+    // No range - serve full file
     const stream = createReadStream(filePath, { highWaterMark: 64 * 1024 });
     const webStream = new ReadableStream({
       start(controller) {

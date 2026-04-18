@@ -12,7 +12,6 @@ interface Video {
 
 interface ShareData {
   name: string | null;
-  expiresAt: string;
   videos: Video[];
 }
 
@@ -26,10 +25,6 @@ export default function WatchPage() {
   const fetchData = useCallback(async () => {
     try {
       const res = await fetch(`/api/public/share/${token}`);
-      if (res.status === 410) {
-        setError("Този линк е изтекъл");
-        return;
-      }
       if (res.status === 404) {
         setError("Невалиден линк");
         return;
@@ -85,16 +80,11 @@ export default function WatchPage() {
   }
 
   const activeVideo = data.videos.find((v) => v.id === activeVideoId) || data.videos[0];
-  const expiresDate = new Date(data.expiresAt);
 
   return (
     <div className="watch-page">
       <div className="watch-header">
         <h1 className="text-gold">{data.name || "Споделени видеа"}</h1>
-        <p className="text-muted" style={{ fontSize: "0.85rem" }}>
-          Линкът е валиден до: {expiresDate.toLocaleDateString("bg-BG")}{" "}
-          {expiresDate.toLocaleTimeString("bg-BG", { hour: "2-digit", minute: "2-digit" })}
-        </p>
       </div>
 
       <div className="watch-player">
