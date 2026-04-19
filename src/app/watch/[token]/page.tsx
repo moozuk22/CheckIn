@@ -8,6 +8,7 @@ interface Video {
   displayName: string;
   sizeBytes: number;
   durationSecs: number | null;
+  mimeType: string;
 }
 
 interface ShareData {
@@ -73,7 +74,7 @@ export default function WatchPage() {
     return (
       <div className="watch-page">
         <div className="watch-error">
-          <h1>Няма налични видеа</h1>
+          <h1>Няма налични файлове</h1>
         </div>
       </div>
     );
@@ -84,22 +85,43 @@ export default function WatchPage() {
   return (
     <div className="watch-page">
       <div className="watch-header">
-        <h1 className="text-gold">{data.name || "Споделени видеа"}</h1>
+        <h1 className="text-gold">{data.name || "Споделени файлове"}</h1>
       </div>
 
       <div className="watch-player">
-        <video
-          key={activeVideo.id}
-          controls
-          autoPlay={false}
-          style={{ width: "100%", maxHeight: "70vh", backgroundColor: "#000" }}
-        >
-          <source
+        {activeVideo.mimeType.startsWith("image/") ? (
+          <img
+            key={activeVideo.id}
             src={`/api/public/stream/${token}/${activeVideo.id}`}
-            type="video/mp4"
+            alt={activeVideo.displayName}
+            style={{ width: "100%", maxHeight: "70vh", objectFit: "contain", display: "block" }}
           />
-          Вашият браузър не поддържа видео.
-        </video>
+        ) : activeVideo.mimeType.startsWith("audio/") ? (
+          <audio
+            key={activeVideo.id}
+            controls
+            style={{ width: "100%" }}
+          >
+            <source
+              src={`/api/public/stream/${token}/${activeVideo.id}`}
+              type={activeVideo.mimeType}
+            />
+            Вашият браузър не поддържа аудио.
+          </audio>
+        ) : (
+          <video
+            key={activeVideo.id}
+            controls
+            autoPlay={false}
+            style={{ width: "100%", maxHeight: "70vh", backgroundColor: "#000" }}
+          >
+            <source
+              src={`/api/public/stream/${token}/${activeVideo.id}`}
+              type={activeVideo.mimeType}
+            />
+            Вашият браузър не поддържа видео.
+          </video>
+        )}
         <h2 className="watch-video-title">{activeVideo.displayName}</h2>
         {activeVideo.durationSecs && (
           <span className="text-muted" style={{ fontSize: "0.85rem" }}>

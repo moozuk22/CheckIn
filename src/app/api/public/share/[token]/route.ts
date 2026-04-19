@@ -25,6 +25,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                 displayName: true,
                 sizeBytes: true,
                 durationSecs: true,
+                mimeType: true,
                 status: true,
                 isVisible: true,
               },
@@ -66,6 +67,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         displayName: item.mediaFile.displayName,
         sizeBytes: Number(item.mediaFile.sizeBytes),
         durationSecs: item.mediaFile.durationSecs,
+        mimeType: item.mediaFile.mimeType,
       }));
 
     return NextResponse.json({
