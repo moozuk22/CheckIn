@@ -257,3 +257,14 @@ model TrainingNote {
 
   @@map("training_notes")
 }
+
+model AdminNotification {
+  id        String   @id @default(uuid())
+  type      String
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("admin_notifications")
+}

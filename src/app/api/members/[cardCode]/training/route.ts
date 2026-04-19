@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { publishTrainingAttendanceUpdated } from "@/lib/trainingAttendanceEvents";
+import { publishAdminNotificationCreated } from "@/lib/adminNotificationEvents";
 import { sendPushToAdmins } from "@/lib/push/adminService";
 import {
   getConfiguredTrainingDates,
@@ -240,6 +241,15 @@ export async function POST(
 
   publishTrainingAttendanceUpdated(trainingDate);
 
+  await prisma.adminNotification.create({
+    data: {
+      type: "training_opt_in",
+      title: "Потвърдено присъствие",
+      body: `${context.memberName} ще присъства на тренировката на ${formatBgDate(trainingDate)}.`,
+    },
+  });
+  publishAdminNotificationCreated();
+
   void sendPushToAdmins({
     title: "Потвърдено присъствие",
     body: `${context.memberName} ще присъства на тренировката на ${formatBgDate(trainingDate)}.`,
@@ -278,6 +288,15 @@ export async function DELETE(
   });
 
   publishTrainingAttendanceUpdated(trainingDate);
+
+  await prisma.adminNotification.create({
+    data: {
+      type: "training_opt_out",
+      title: "Отсъствие от тренировка",
+      body: `${context.memberName} ще отсъства на ${formatBgDate(trainingDate)}.`,
+    },
+  });
+  publishAdminNotificationCreated();
 
   void sendPushToAdmins({
     title: "Отсъствие от тренировка",

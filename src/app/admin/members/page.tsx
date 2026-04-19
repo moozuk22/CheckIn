@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AdminPushPanel } from "@/components/push/AdminPushPanel";
+import { AdminNotificationBell } from "@/components/admin/AdminNotificationBell";
 
 const MODAL_MONTH_NAMES = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември']
 const MODAL_WEEKDAY_SHORT = ['Пон', 'Вт', 'Ср', 'Чет', 'Пет', 'Съб', 'Нед']
@@ -378,7 +379,8 @@ export default function AdminMembersPage() {
   });
 
   return (
-    <div className="container p-6 fade-in">
+    <div className="container p-6 fade-in" style={{ position: 'relative' }}>
+      <AdminNotificationBell />
       <div className="flex-col flex items-center text-center mb-8">
         
         <h1 className="text-gold mb-2" style={{ fontSize: '2rem', fontWeight: '600' }}>
