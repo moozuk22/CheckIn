@@ -47,6 +47,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         status: true,
         isVisible: true,
         sizeBytes: true,
+        cloudinaryUrl: true,
       },
     });
 
@@ -55,6 +56,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         { error: "Видеото не е налично" },
         { status: 404 }
       );
+    }
+
+    if (mediaFile.cloudinaryUrl) {
+      return NextResponse.redirect(mediaFile.cloudinaryUrl, {
+        status: 302,
+        headers: { "Cache-Control": "private, max-age=3600" },
+      });
     }
 
     const filePath = getFilePath(mediaFile.diskFileName);
