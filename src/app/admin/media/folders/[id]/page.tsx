@@ -16,7 +16,7 @@ interface ChildFolder {
   id: string;
   name: string;
   createdAt: string;
-  _count: { children: number; items: number };
+  _count: { children: number; items: number; videos: number; images: number; audios: number };
 }
 
 interface FolderItemEntry {
@@ -42,7 +42,7 @@ interface FolderItemEntry {
 interface BrowserFolder {
   id: string;
   name: string;
-  _count: { children: number; items: number };
+  _count: { children: number; items: number; videos: number; images: number; audios: number };
 }
 
 interface BrowserItem {
@@ -469,7 +469,7 @@ export default function FolderDetailPage() {
                     <div className="fd-folder-info">
                       <div className="fd-folder-name">{child.name}</div>
                       <div className="fd-folder-meta">
-                        {child._count.items} файла · {child._count.children} подпапки
+                        {formatFolderMeta(child._count)}
                       </div>
                     </div>
                     {isAdminRole && (
@@ -696,8 +696,7 @@ export default function FolderDetailPage() {
                         <div className="fd-browser-folder-content">
                           <strong>{child.name}</strong>
                           <span className="text-muted fd-browser-folder-meta">
-                            {child._count.items} файла
-                            {child._count.children > 0 ? ` · ${child._count.children} подпапки` : ""}
+                            {formatFolderMeta(child._count)}
                           </span>
                         </div>
                         <span className="text-muted fd-browser-folder-arrow">›</span>
@@ -926,6 +925,18 @@ export default function FolderDetailPage() {
       )}
     </>
   );
+}
+
+function formatFolderMeta(count: { items: number; children: number; videos: number; images: number; audios: number }): string {
+  const parts: string[] = [];
+  if (count.videos > 0) parts.push(`${count.videos} видеа`);
+  if (count.images > 0) parts.push(`${count.images} снимки`);
+  if (count.audios > 0) parts.push(`${count.audios} аудио`);
+  const other = count.items - count.videos - count.images - count.audios;
+  if (other > 0) parts.push(`${other} файла`);
+  if (parts.length === 0) parts.push("0 файла");
+  if (count.children > 0) parts.push(`${count.children} подпапки`);
+  return parts.join(" · ");
 }
 
 function formatDuration(secs: number): string {

@@ -24,7 +24,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         children: {
           orderBy: { createdAt: "desc" },
           include: {
-            _count: { select: { children: true, items: true } },
+            _count: { select: { children: true } },
+            items: {
+              select: { mediaFile: { select: { mimeType: true } } },
+            },
           },
         },
         items: {
@@ -66,7 +69,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         createdAt: folder.createdAt,
         updatedAt: folder.updatedAt,
       },
-      children: folder.children,
+      children: folder.children.map(({ items, _count, ...rest }) => ({
+        ...rest,
+        _count: {
+          children: _count.children,
+          items: items.length,
+          videos: items.filter((i) => i.mediaFile.mimeType.startsWith("video/")).length,
+          images: items.filter((i) => i.mediaFile.mimeType.startsWith("image/")).length,
+          audios: items.filter((i) => i.mediaFile.mimeType.startsWith("audio/")).length,
+        },
+      })),
       items: folder.items.map((item) => ({
         ...item,
         mediaFile: {

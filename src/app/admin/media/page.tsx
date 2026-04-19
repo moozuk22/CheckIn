@@ -9,7 +9,7 @@ interface Folder {
   id: string;
   name: string;
   createdAt: string;
-  _count: { children: number; items: number };
+  _count: { children: number; items: number; videos: number; images: number; audios: number };
 }
 
 interface FolderDownloadResponse {
@@ -316,7 +316,7 @@ export default function MediaLibraryPage() {
                     <div className="fd-folder-info">
                       <div className="fd-folder-name">{folder.name}</div>
                       <div className="fd-folder-meta">
-                        {folder._count.items} видеа · {folder._count.children} подпапки
+                        {formatFolderMeta(folder._count)}
                       </div>
                     </div>
                     {isAdminRole && (
@@ -388,4 +388,16 @@ export default function MediaLibraryPage() {
       )}
     </>
   );
+}
+
+function formatFolderMeta(count: { items: number; children: number; videos: number; images: number; audios: number }): string {
+  const parts: string[] = [];
+  if (count.videos > 0) parts.push(`${count.videos} видеа`);
+  if (count.images > 0) parts.push(`${count.images} снимки`);
+  if (count.audios > 0) parts.push(`${count.audios} аудио`);
+  const other = count.items - count.videos - count.images - count.audios;
+  if (other > 0) parts.push(`${other} файла`);
+  if (parts.length === 0) parts.push("0 файла");
+  if (count.children > 0) parts.push(`${count.children} подпапки`);
+  return parts.join(" · ");
 }

@@ -18,13 +18,25 @@ export async function GET(request: NextRequest) {
       where: { parentId },
       orderBy: { createdAt: "desc" },
       include: {
-        _count: {
-          select: { children: true, items: true },
+        _count: { select: { children: true } },
+        items: {
+          select: { mediaFile: { select: { mimeType: true } } },
         },
       },
     });
 
-    return NextResponse.json({ folders });
+    return NextResponse.json({
+      folders: folders.map(({ items, _count, ...rest }) => ({
+        ...rest,
+        _count: {
+          children: _count.children,
+          items: items.length,
+          videos: items.filter((i) => i.mediaFile.mimeType.startsWith("video/")).length,
+          images: items.filter((i) => i.mediaFile.mimeType.startsWith("image/")).length,
+          audios: items.filter((i) => i.mediaFile.mimeType.startsWith("audio/")).length,
+        },
+      })),
+    });
   } catch (error) {
     console.error("List folders error:", error);
     return NextResponse.json(
