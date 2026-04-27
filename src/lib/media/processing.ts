@@ -37,8 +37,10 @@ export async function probeFile(diskFileName: string): Promise<ProbeResult> {
 
   const formatName: string = format.format_name || "";
   let container = "unknown";
-  if (formatName.includes("mp4") || formatName.includes("mov")) {
+  if (formatName.includes("mp4")) {
     container = "mp4";
+  } else if (formatName.includes("mov")) {
+    container = "mov";
   } else if (formatName.includes("webm") || formatName.includes("matroska")) {
     container = formatName.includes("webm") ? "webm" : "mkv";
   } else if (formatName.includes("avi")) {
@@ -178,7 +180,7 @@ async function processNext(): Promise<void> {
         diskFileName: outputFileName,
         sizeBytes: BigInt(stat.size),
         errorMessage: null,
-        ...(item.isAudioOnly ? { mimeType: "audio/mp4" } : {}),
+        mimeType: item.isAudioOnly ? "audio/mp4" : "video/mp4",
       },
     });
 

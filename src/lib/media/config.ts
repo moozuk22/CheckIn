@@ -39,7 +39,6 @@ export const BROWSER_AUDIO_CODECS = new Set([
 export const DIRECT_SERVE_CONTAINERS = new Set([
   "mp4",
   "webm",
-  "mov", // mov with H.264+AAC plays in most browsers
 ]);
 
 // Stale upload cleanup interval (6 hours)

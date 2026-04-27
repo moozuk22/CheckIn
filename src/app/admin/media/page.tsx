@@ -24,6 +24,12 @@ interface FolderDownloadResponse {
   }>;
 }
 
+interface BrokenFile {
+  id: string;
+  displayName: string;
+  mimeType: string;
+}
+
 export default function MediaLibraryPage() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -33,6 +39,9 @@ export default function MediaLibraryPage() {
   const [isMediaManager, setIsMediaManager] = useState(false);
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
   const [downloadingSelection, setDownloadingSelection] = useState(false);
+  const [brokenFiles, setBrokenFiles] = useState<BrokenFile[] | null>(null);
+  const [fixingBroken, setFixingBroken] = useState(false);
+  const [fixProgress, setFixProgress] = useState<{ done: number; total: number; errors: string[] } | null>(null);
   const [memberReturnCardCode] = useState<string | null>(() =>
     typeof window !== "undefined" ? sessionStorage.getItem("admin_return_member_card_code") : null
   );
@@ -219,6 +228,41 @@ export default function MediaLibraryPage() {
     }
   };
 
+  const handleCheckBroken = async () => {
+    try {
+      const res = await fetch("/api/admin/media/broken");
+      if (!res.ok) return;
+      const data = await res.json();
+      setBrokenFiles(data.files);
+      setFixProgress(null);
+    } catch {
+      alert("Грешка при проверка на грешни видеа.");
+    }
+  };
+
+  const handleFixBroken = async () => {
+    if (!brokenFiles || brokenFiles.length === 0 || fixingBroken) return;
+    setFixingBroken(true);
+    setFixProgress({ done: 0, total: brokenFiles.length, errors: [] });
+
+    const errors: string[] = [];
+    for (let i = 0; i < brokenFiles.length; i++) {
+      const file = brokenFiles[i];
+      try {
+        const res = await fetch(`/api/admin/media/${file.id}/reprocess`, { method: "POST" });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          errors.push(`${file.displayName}: ${data.error ?? res.status}`);
+        }
+      } catch {
+        errors.push(`${file.displayName}: мрежова грешка`);
+      }
+      setFixProgress({ done: i + 1, total: brokenFiles.length, errors: [...errors] });
+    }
+
+    setFixingBroken(false);
+  };
+
   const handleBack = () => {
     if (isAdminRole || !memberReturnCardCode) {
       router.push("/admin/members");
@@ -244,6 +288,11 @@ export default function MediaLibraryPage() {
             {isAdminRole && (
               <button onClick={() => router.push("/admin/audit")} className="fd-btn fd-btn-secondary">
                 Одитен дневник
+              </button>
+            )}
+            {isAdminRole && (
+              <button onClick={handleCheckBroken} className="fd-btn fd-btn-secondary">
+                Поправи грешни видеа
               </button>
             )}
             {(isAdminRole || memberReturnCardCode) && (
@@ -358,6 +407,60 @@ export default function MediaLibraryPage() {
               <button className="fd-btn fd-btn-primary" onClick={handleCreateFolder}>
                 Създай
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {brokenFiles !== null && (
+        <div className="fd-overlay" onClick={() => { if (!fixingBroken) { setBrokenFiles(null); setFixProgress(null); } }}>
+          <div className="fd-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="fd-modal-title">Грешни видеа</h3>
+            {brokenFiles.length === 0 ? (
+              <p className="fd-modal-body">Няма открити грешни видеа.</p>
+            ) : (
+              <>
+                <p className="fd-modal-body">
+                  Открити са <strong style={{ color: "#e8e0d0" }}>{brokenFiles.length}</strong> видеа с неподдържан MIME тип, които ще бъдат преобработени:
+                </p>
+                <ul style={{ margin: "8px 0 12px", paddingLeft: "18px", maxHeight: "180px", overflowY: "auto", fontSize: "13px", color: "#b8a98a" }}>
+                  {brokenFiles.map((f) => (
+                    <li key={f.id}>{f.displayName} <span style={{ opacity: 0.6 }}>({f.mimeType})</span></li>
+                  ))}
+                </ul>
+                {fixProgress && (
+                  <div style={{ marginBottom: "12px", fontSize: "13px", color: "#b8a98a" }}>
+                    Прогрес: {fixProgress.done} / {fixProgress.total}
+                    {fixProgress.errors.length > 0 && (
+                      <ul style={{ marginTop: "6px", paddingLeft: "16px", color: "#e05050" }}>
+                        {fixProgress.errors.map((e, i) => <li key={i}>{e}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+            <div className="fd-modal-actions">
+              <button
+                className="fd-btn fd-btn-ghost"
+                onClick={() => { setBrokenFiles(null); setFixProgress(null); }}
+                disabled={fixingBroken}
+              >
+                Затвори
+              </button>
+              {brokenFiles.length > 0 && (
+                <button
+                  className="fd-btn fd-btn-primary"
+                  onClick={handleFixBroken}
+                  disabled={fixingBroken || fixProgress?.done === fixProgress?.total && fixProgress !== null}
+                >
+                  {fixingBroken
+                    ? `Обработка ${fixProgress?.done ?? 0}/${fixProgress?.total ?? 0}...`
+                    : fixProgress?.done === fixProgress?.total && fixProgress !== null
+                      ? "Завършено"
+                      : "Поправи всички"}
+                </button>
+              )}
             </div>
           </div>
         </div>
