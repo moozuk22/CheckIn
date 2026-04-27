@@ -290,11 +290,13 @@ export default function MediaLibraryPage() {
                 Одитен дневник
               </button>
             )}
+            {/* broken-video fix button — kept for future use, hidden after one-time cleanup
             {isAdminRole && (
               <button onClick={handleCheckBroken} className="fd-btn fd-btn-secondary">
                 Поправи грешни видеа
               </button>
             )}
+            */}
             {(isAdminRole || memberReturnCardCode) && (
               <button onClick={handleBack} className="fd-btn fd-btn-secondary">
                 Назад
