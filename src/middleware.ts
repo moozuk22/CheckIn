@@ -45,7 +45,8 @@ export async function middleware(request: NextRequest) {
         const isMediaApi =
           pathname.startsWith("/api/admin/media") ||
           pathname.startsWith("/api/admin/folders") ||
-          pathname.startsWith("/api/admin/shares");
+          pathname.startsWith("/api/admin/shares") ||
+          pathname === "/api/admin/logout";
 
         if (!isMediaPage && !isMediaApi) {
           if (pathname.startsWith("/api/")) {
