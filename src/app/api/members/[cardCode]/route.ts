@@ -9,7 +9,8 @@ export async function GET(
   { params }: { params: Promise<{ cardCode: string }> }
 ) {
   const { cardCode } = await params;
-  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
   try {
     const card = await prisma.card.findFirst({
@@ -49,18 +50,17 @@ export async function GET(
           where: {
             memberId: card.member.id,
             sentAt: {
-              gte: oneWeekAgo,
+              gte: oneYearAgo,
             },
           },
           orderBy: { sentAt: "desc" },
-          take: 20,
         }),
         prisma.memberNotification.count({
           where: {
             memberId: card.member.id,
             readAt: null,
             sentAt: {
-              gte: oneWeekAgo,
+              gte: oneYearAgo,
             },
           },
         }),

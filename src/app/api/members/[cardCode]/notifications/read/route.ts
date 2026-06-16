@@ -9,7 +9,8 @@ export async function POST(
   { params }: { params: Promise<{ cardCode: string }> }
 ) {
   const { cardCode } = await params;
-  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
   try {
     const card = await prisma.card.findFirst({
@@ -30,7 +31,7 @@ export async function POST(
           memberId: card.memberId,
           readAt: null,
           sentAt: {
-            gte: oneWeekAgo,
+            gte: oneYearAgo,
           },
         },
         data: {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, use, useRef, useCallback } from 'react'
+import type { MouseEvent as ReactMouseEvent } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { PushNotificationsPanel } from '@/components/push/PushNotificationsPanel'
 import './training-calendar.css'
@@ -95,6 +96,12 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
   function formatIsoDateForBgDisplay(isoDate: string): string {
     const [y, m, d] = isoDate.split('-')
     return `${d}.${m}.${y}`
+  }
+
+  function openTrainingDetails(event: ReactMouseEvent<HTMLButtonElement>, date: string) {
+    event.preventDefault()
+    event.stopPropagation()
+    setTrainingDetailsDate(date)
   }
 
   function getSofiaTargetDate(isoDate: string, trainingTime: string | null): Date {
@@ -1103,7 +1110,7 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
                                 key={cellDate}
                                 type="button"
                                 className={`training-calendar-cell training-calendar-cell--training${td.optedOut ? ' training-calendar-cell--opted-out' : ''}${isToday ? ' training-calendar-cell--today' : ''}`}
-                                onClick={() => setTrainingDetailsDate(cellDate === trainingDetailsDate ? null : cellDate)}
+                                onClick={(event) => openTrainingDetails(event, cellDate)}
                                 disabled={isSaving}
                               >
                                 <span className="training-calendar-day-number">{dayNumber}</span>
@@ -1143,7 +1150,7 @@ export default function MemberPage({ params }: { params: Promise<{ cardCode: str
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '15px', color: '#fff' }}>
-                    {new Date(`${td.date}T12:00:00.000Z`).toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    {formatIsoDateForBgDisplay(td.date)}
                   </div>
                   {td.trainingTime && (
                     <div style={{ fontSize: '13px', opacity: 0.75, marginTop: '2px' }}>
