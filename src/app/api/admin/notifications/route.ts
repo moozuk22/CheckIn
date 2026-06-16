@@ -12,12 +12,11 @@ export async function GET(request: NextRequest) {
   }
 
   const since = new Date();
-  since.setDate(since.getDate() - 7);
+  since.setFullYear(since.getFullYear() - 1);
 
   const notifications = await prisma.adminNotification.findMany({
     where: { createdAt: { gte: since } },
     orderBy: { createdAt: "desc" },
-    take: 50,
   });
 
   const shaped = notifications.map((n) => ({
